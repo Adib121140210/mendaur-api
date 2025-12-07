@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Tabung Sampah Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 4px;
+            display: none;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Tabung Sampah Form</h1>
+
+    <button onclick="testCORS()" style="margin-bottom: 20px; background: #2196F3;">🧪 Test CORS Connection</button>
+
+    <form id="tabungSampahForm">
+        <div class="form-group">
+            <label>Jadwal ID:</label>
+            <select id="jadwal_id" required>
+                <option value="">Pilih Jadwal</option>
+                <option value="1">Jadwal 1 - TPS 3R Metro Barat (08:00-10:00)</option>
+                <option value="2">Jadwal 2 - Bank Sampah Induk Nusa (14:00-16:00)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Nama Lengkap:</label>
+            <input type="text" id="nama_lengkap" required>
+        </div>
+
+        <div class="form-group">
+            <label>No HP:</label>
+            <input type="text" id="no_hp" required>
+        </div>
+
+        <div class="form-group">
+            <label>Titik Lokasi:</label>
+            <input type="text" id="titik_lokasi" required>
+        </div>
+
+        <div class="form-group">
+            <label>Jenis Sampah:</label>
+            <select id="jenis_sampah" required>
+                <option value="">Pilih Jenis</option>
+                <option value="Organik">Organik</option>
+                <option value="Anorganik">Anorganik</option>
+                <option value="Plastik">Plastik</option>
+                <option value="Kertas">Kertas</option>
+                <option value="Logam">Logam</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Foto Sampah:</label>
+            <input type="file" id="foto_sampah" accept="image/*">
+        </div>
+
+        <button type="submit" id="submitBtn">Submit</button>
+    </form>
+
+    <div id="response" class="response"></div>
+
+    <script>
+        // Test CORS connection
+        async function testCORS() {
+            const responseDiv = document.getElementById('response');
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response';
+            responseDiv.innerHTML = '<p>Testing CORS connection...</p>';
+
+            try {
+                const res = await fetch('http://127.0.0.1:8000/api/jadwal-penyetoran', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!res.ok) throw new Error('Request failed');
+                const data = await res.json();
+
+                responseDiv.innerHTML = `
+                    <h3>✅ CORS Working!</h3>
+                    <p>Successfully connected to backend</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (err) {
+                responseDiv.className = 'response error';
+                responseDiv.innerHTML = `
+                    <h3>❌ CORS Error</h3>
+                    <p>${err.message}</p>
+                    <p>Check if Laravel server is running at http://127.0.0.1:8000</p>
+                `;
+            }
+        }
+
+        document.getElementById('tabungSampahForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const responseDiv = document.getElementById('response');
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Loading...';
+            responseDiv.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('user_id', 1); // Test user ID
+            formData.append('jadwal_id', document.getElementById('jadwal_id').value);
+            formData.append('nama_lengkap', document.getElementById('nama_lengkap').value);
+            formData.append('no_hp', document.getElementById('no_hp').value);
+            formData.append('titik_lokasi', document.getElementById('titik_lokasi').value);
+            formData.append('jenis_sampah', document.getElementById('jenis_sampah').value);
+
+            const fotoFile = document.getElementById('foto_sampah').files[0];
+            if (fotoFile) {
+                formData.append('foto_sampah', fotoFile);
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/tabung-sampah', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+                console.log('Response:', result);
+
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response';
+
+                if (result.status === 'success') {
+                    responseDiv.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p>${result.message}</p>
+                        <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                    `;
+                    document.getElementById('tabungSampahForm').reset();
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.innerHTML = `
+                        <h3>❌ Error</h3>
+                        <p>${result.message || 'Something went wrong'}</p>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response error';
+                responseDiv.innerHTML = `
+                    <h3>❌ Network Error</h3>
+                    <p>${error.message}</p>
+                `;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit';
+            }
+        });
+    </script>
+</body>
+</html>
