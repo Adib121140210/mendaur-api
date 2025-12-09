@@ -12,8 +12,16 @@ class DashboardController extends Controller
     /**
      * Get dashboard statistics for a user
      */
-    public function getUserStats($userId)
+    public function getUserStats(Request $request, $userId)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$userId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s dashboard'
+            ], 403);
+        }
+        
         $user = User::findOrFail($userId);
 
         // Get user's rank

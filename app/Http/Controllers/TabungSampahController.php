@@ -109,8 +109,16 @@ class TabungSampahController extends Controller
     }
 
     // Get tabung sampah by user
-    public function byUser($id)
+    public function byUser(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s data'
+            ], 403);
+        }
+        
         $data = TabungSampah::where('user_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();

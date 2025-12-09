@@ -167,17 +167,22 @@ Route::middleware('auth:sanctum')->group(function () {
 // USER PROFILE ROUTES (Public for now, can be protected later)
 // ========================================
 Route::get('user/{id}/poin', [PointController::class, 'getUserPoints']);
-Route::get('user/{id}/redeem-history', [PointController::class, 'getRedeemHistory']);
-Route::get('user/{id}/poin/statistics', [PointController::class, 'getStatistics']);
-Route::get('users/{id}', [UserController::class, 'show']);
-Route::put('users/{id}', [UserController::class, 'update']);
-Route::post('users/{id}/update-photo', [UserController::class, 'updatePhoto']);
-Route::get('users/{id}/tabung-sampah', [UserController::class, 'tabungSampahHistory']);
-Route::get('users/{id}/badges', [UserController::class, 'badges']);
-// New: detailed badge list with user-specific progress and filters
-Route::get('users/{userId}/badges-list', [BadgeController::class, 'getUserBadges']);
-Route::get('users/badges', [BadgeController::class, 'getUserBadges']); // current authenticated user
-Route::get('users/{id}/aktivitas', [UserController::class, 'aktivitas']);
+// ========================================
+// PROTECTED USER ROUTES (Auth Required)
+// ========================================
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('user/{id}/redeem-history', [PointController::class, 'getRedeemHistory']);
+    Route::get('user/{id}/poin/statistics', [PointController::class, 'getStatistics']);
+    Route::get('users/{id}', [UserController::class, 'show']);
+    Route::put('users/{id}', [UserController::class, 'update']);
+    Route::post('users/{id}/update-photo', [UserController::class, 'updatePhoto']);
+    Route::get('users/{id}/tabung-sampah', [UserController::class, 'tabungSampahHistory']);
+    Route::get('users/{id}/badges', [UserController::class, 'badges']);
+    // New: detailed badge list with user-specific progress and filters
+    Route::get('users/{userId}/badges-list', [BadgeController::class, 'getUserBadges']);
+    Route::get('users/badges', [BadgeController::class, 'getUserBadges']); // current authenticated user
+    Route::get('users/{id}/aktivitas', [UserController::class, 'aktivitas']);
+});
 
 // ========================================
 // DASHBOARD ROUTES (Public for now, can be protected later)
