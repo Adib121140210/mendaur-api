@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\JadwalPenyetoran;
+use App\Http\Resources\JadwalPenyetoranResource;
 
 class JadwalPenyetoranController extends Controller
 {
@@ -14,7 +15,7 @@ class JadwalPenyetoranController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $data
+            'data' => JadwalPenyetoranResource::collection($data)
         ]);
     }
 
@@ -33,7 +34,7 @@ class JadwalPenyetoranController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $jadwal
+            'data' => new JadwalPenyetoranResource($jadwal)
         ], 201);
     }
 
@@ -46,7 +47,7 @@ class JadwalPenyetoranController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $data
+            'data' => JadwalPenyetoranResource::collection($data)
         ]);
     }
 
@@ -64,7 +65,7 @@ class JadwalPenyetoranController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data' => $jadwalPenyetoran
+            'data' => new JadwalPenyetoranResource($jadwalPenyetoran)
         ]);
     }
 
@@ -83,7 +84,7 @@ class JadwalPenyetoranController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $jadwalPenyetoran
+            'data' => new JadwalPenyetoranResource($jadwalPenyetoran)
         ]);
     }
 
