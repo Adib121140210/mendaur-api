@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Artikel;
 use Illuminate\Support\Str;
+use App\Http\Resources\ArtikelResource;
 
 class ArtikelController extends Controller
 {
@@ -19,7 +20,7 @@ class ArtikelController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $artikel,
+            'data' => ArtikelResource::collection($artikel),
         ], 200);
     }
 
@@ -42,7 +43,7 @@ class ArtikelController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $artikel,
+            'data' => new ArtikelResource($artikel),
         ], 200);
     }
 
@@ -76,7 +77,7 @@ class ArtikelController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Artikel berhasil ditambahkan',
-            'data' => $artikel,
+            'data' => new ArtikelResource($artikel),
         ], 201);
     }
 
@@ -121,7 +122,7 @@ class ArtikelController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Artikel berhasil diupdate',
-            'data' => $artikel,
+            'data' => new ArtikelResource($artikel),
         ], 200);
     }
 
