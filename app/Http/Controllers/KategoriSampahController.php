@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\KategoriSampah;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Resources\KategoriSampahResource;
+use App\Http\Resources\JenisSampahResource;
 
 class KategoriSampahController extends Controller
 {
@@ -24,7 +26,7 @@ class KategoriSampahController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Kategori sampah berhasil diambil',
-                'data' => $kategori
+                'data' => KategoriSampahResource::collection($kategori)
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -48,7 +50,7 @@ class KategoriSampahController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Detail kategori sampah berhasil diambil',
-                'data' => $kategori
+                'data' => new KategoriSampahResource($kategori)
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -74,8 +76,8 @@ class KategoriSampahController extends Controller
                 'success' => true,
                 'message' => 'Jenis sampah berhasil diambil',
                 'data' => [
-                    'kategori' => $kategori,
-                    'jenis_sampah' => $jenisSampah
+                    'kategori' => new KategoriSampahResource($kategori),
+                    'jenis_sampah' => JenisSampahResource::collection($jenisSampah)
                 ]
             ]);
         } catch (\Exception $e) {
@@ -95,23 +97,12 @@ class KategoriSampahController extends Controller
         try {
             $jenisSampah = \App\Models\JenisSampah::with('kategori')
                 ->orderBy('nama')
-                ->get()
-                ->map(function($jenis) {
-                    return [
-                        'id' => $jenis->id,
-                        'nama_jenis' => $jenis->nama_jenis,
-                        'kategori' => $jenis->kategori->nama_kategori,
-                        'full_name' => $jenis->kategori->nama_kategori . ' - ' . $jenis->nama_jenis,
-                        'harga_per_kg' => $jenis->harga_per_kg,
-                        'satuan' => $jenis->satuan,
-                        'kode' => $jenis->kode,
-                    ];
-                });
+                ->get();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Semua jenis sampah berhasil diambil',
-                'data' => $jenisSampah
+                'data' => JenisSampahResource::collection($jenisSampah)
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -148,7 +139,7 @@ class KategoriSampahController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Kategori sampah berhasil ditambahkan',
-                'data' => $kategori
+                'data' => new KategoriSampahResource($kategori)
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -187,7 +178,7 @@ class KategoriSampahController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Kategori sampah berhasil diupdate',
-                'data' => $kategori
+                'data' => new KategoriSampahResource($kategori)
             ]);
         } catch (\Exception $e) {
             return response()->json([
