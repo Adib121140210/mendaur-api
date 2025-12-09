@@ -10,26 +10,18 @@ use Illuminate\Http\Request;
 
 class PointController extends Controller
 {
-    /**
-     * Get user's point summary + recent history
-     * GET /api/user/{id}/poin
-     * 
-     * @param int $id User ID
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function getUserPoints(Request $request, $id)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot access other user\'s data'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         try {
             $user = User::findOrFail($id);
-            
+
             // Get recent transactions
             $recentTransactions = PoinTransaksi::where('user_id', $id)
                 ->orderBy('created_at', 'desc')
@@ -69,14 +61,14 @@ class PointController extends Controller
     /**
      * Get point transaction history with pagination
      * GET /api/poin/history?page=1&per_page=20&sumber=setor_sampah
-     * 
+     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function getHistory(Request $request)
     {
         try {
-            $userId = $request->user()?->id;
+            $userId = $request->user()?->user_id;
             if (!$userId) {
                 return response()->json([
                     'status' => 'error',
@@ -118,26 +110,18 @@ class PointController extends Controller
         }
     }
 
-    /**
-     * Get user's redemption history
-     * GET /api/user/{id}/redeem-history
-     * 
-     * @param int $id User ID
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function getRedeemHistory(Request $request, $id)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot access other user\'s data'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         try {
             $user = User::findOrFail($id);
-            
+
             $redemptions = PoinTransaksi::where('user_id', $id)
                 ->where('sumber', 'redemption')
                 ->orderBy('created_at', 'desc')
@@ -164,26 +148,24 @@ class PointController extends Controller
         }
     }
 
-    /**
-     * Get point statistics for a user
-     * GET /api/user/{id}/poin/statistics
-     * 
-     * @param int $id User ID
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function getStatistics(Request $request, $id)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Forbidden: Cannot access other user\'s data'
             ], 403);
         }
-        
+
         try {
             $user = User::findOrFail($id);
-            
+
             $stats = PointService::getStatistics($id);
 
             return response()->json([
@@ -213,18 +195,17 @@ class PointController extends Controller
         }
     }
 
-    /**
-     * Get point breakdown by source
-     * GET /api/poin/breakdown/{userId}
-     * 
-     * @param int $userId
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getBreakdown($userId)
+    public function getBreakdown(Request $request, $userId)
     {
+        if ((int)$request->user()->user_id !== (int)$userId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized'
+            ], 403);
+        }
         try {
             $user = User::findOrFail($userId);
-            
+
             $breakdown = [
                 'current_balance' => $user->total_poin,
                 'earned_from' => [
@@ -277,7 +258,7 @@ class PointController extends Controller
     /**
      * Award bonus points to a user (Admin only)
      * POST /api/poin/bonus
-     * 
+     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
