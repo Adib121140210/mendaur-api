@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Notifikasi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Resources\PenarikanTunaiResource;
 
 class PenarikanTunaiController extends Controller
 {
@@ -56,7 +57,7 @@ class PenarikanTunaiController extends Controller
 
             // Create withdrawal record
             $withdrawal = PenarikanTunai::create([
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'jumlah_poin' => $validated['jumlah_poin'],
                 'jumlah_rupiah' => $jumlah_rupiah,
                 'nomor_rekening' => $validated['nomor_rekening'],
@@ -67,7 +68,7 @@ class PenarikanTunaiController extends Controller
 
             // Send notification to user
             Notifikasi::create([
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'judul' => 'Permintaan Penarikan Tunai Diajukan',
                 'pesan' => "Permintaan penarikan Rp " . number_format($jumlah_rupiah, 0, ',', '.') . " berhasil diajukan dan sedang diproses",
                 'tipe' => 'penarikan_tunai',
@@ -90,7 +91,7 @@ class PenarikanTunaiController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Permintaan penarikan tunai berhasil diajukan',
-                'data' => $withdrawal
+                'data' => new PenarikanTunaiResource($withdrawal)
             ], 201);
 
         } catch (\Exception $e) {
@@ -109,7 +110,7 @@ class PenarikanTunaiController extends Controller
      */
     public function index(Request $request)
     {
-        $query = PenarikanTunai::where('user_id', $request->user()->id);
+        $query = PenarikanTunai::where('user_id', $request->user()->user_id);
 
         // Filter by status if provided
         if ($request->has('status')) {
@@ -121,7 +122,13 @@ class PenarikanTunaiController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $withdrawals
+            'data' => PenarikanTunaiResource::collection($withdrawals->items()),
+            'pagination' => [
+                'current_page' => $withdrawals->currentPage(),
+                'per_page' => $withdrawals->perPage(),
+                'total' => $withdrawals->total(),
+                'last_page' => $withdrawals->lastPage(),
+            ]
         ]);
     }
 
@@ -134,7 +141,7 @@ class PenarikanTunaiController extends Controller
             ->findOrFail($id);
 
         // Check authorization
-        if (auth()->user()->id !== $withdrawal->user_id && !auth()->user()->isAdmin()) {
+        if (auth()->user()->user_id !== $withdrawal->user_id && !auth()->user()->isAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized'
@@ -143,24 +150,7 @@ class PenarikanTunaiController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'id' => $withdrawal->id,
-                'user_id' => $withdrawal->user_id,
-                'jumlah_poin' => $withdrawal->jumlah_poin,
-                'jumlah_rupiah' => $withdrawal->jumlah_rupiah,
-                'nomor_rekening' => $withdrawal->nomor_rekening,
-                'nama_bank' => $withdrawal->nama_bank,
-                'nama_penerima' => $withdrawal->nama_penerima,
-                'status' => $withdrawal->status,
-                'catatan_admin' => $withdrawal->catatan_admin,
-                'processed_by' => $withdrawal->processed_by,
-                'processed_at' => $withdrawal->processed_at,
-                'created_at' => $withdrawal->created_at,
-                'admin' => $withdrawal->processedBy ? [
-                    'id' => $withdrawal->processedBy->id,
-                    'name' => $withdrawal->processedBy->nama
-                ] : null
-            ]
+            'data' => new PenarikanTunaiResource($withdrawal)
         ]);
     }
 
@@ -170,7 +160,7 @@ class PenarikanTunaiController extends Controller
      */
     public function summary(Request $request)
     {
-        $userId = $request->user()->id;
+        $userId = $request->user()->user_id;
 
         $summary = [
             'total_withdrawn_points' => PenarikanTunai::where('user_id', $userId)
