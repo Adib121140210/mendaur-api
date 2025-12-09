@@ -5,23 +5,21 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\TabungSampah;
+use App\Http\Resources\UserResource;
+use App\Http\Resources\TabungSampahResource;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    /**
-     * Get dashboard statistics for a user
-     */
     public function getUserStats(Request $request, $userId)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$userId) {
+        if ((int)$request->user()->user_id !== (int)$userId) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot access other user\'s dashboard'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $user = User::findOrFail($userId);
 
         // Get user's rank
@@ -70,15 +68,7 @@ class DashboardController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'nama' => $user->nama,
-                    'email' => $user->email,
-                    'foto_profil' => $user->foto_profil,
-                    'total_poin' => $user->total_poin,
-                    'total_setor_sampah' => $user->total_setor_sampah,
-                    'level' => $user->level,
-                ],
+                'user' => new UserResource($user),
                 'statistics' => [
                     'rank' => $rank,
                     'total_users' => $totalUsers,
@@ -88,7 +78,7 @@ class DashboardController extends Controller
                     'progress_to_next_level' => round($progress, 2),
                     'poin_needed' => max(0, $nextLevelPoin - $currentPoin),
                 ],
-                'recent_deposits' => $recentDeposits,
+                'recent_deposits' => TabungSampahResource::collection($recentDeposits),
             ],
         ]);
     }
