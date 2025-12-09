@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Produk;
+use App\Http\Resources\ProdukResource;
 
 class ProdukController extends Controller
 {
@@ -18,7 +19,7 @@ class ProdukController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $produk,
+            'data' => ProdukResource::collection($produk),
         ], 200);
     }
 
@@ -38,7 +39,7 @@ class ProdukController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $produk,
+            'data' => new ProdukResource($produk),
         ], 200);
     }
 
@@ -70,7 +71,7 @@ class ProdukController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Produk berhasil ditambahkan',
-            'data' => $produk,
+            'data' => new ProdukResource($produk),
         ], 201);
     }
 
@@ -111,7 +112,7 @@ class ProdukController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Produk berhasil diupdate',
-            'data' => $produk,
+            'data' => new ProdukResource($produk),
         ], 200);
     }
 
