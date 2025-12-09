@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\JenisSampah;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Resources\JenisSampahResource;
 
 class JenisSampahController extends Controller
 {
@@ -36,7 +37,7 @@ class JenisSampahController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Jenis sampah berhasil ditambahkan',
-                'data' => $jenis
+                'data' => new JenisSampahResource($jenis)
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -77,7 +78,7 @@ class JenisSampahController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Jenis sampah berhasil diupdate',
-                'data' => $jenis
+                'data' => new JenisSampahResource($jenis)
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -132,24 +133,7 @@ class JenisSampahController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $jenisSampah->map(function($item) {
-                    return [
-                        'id' => $item->id,
-                        'nama_jenis' => $item->nama_jenis,
-                        'kategori_sampah_id' => $item->kategori_sampah_id,
-                        'kategori_sampah' => [
-                            'id' => $item->kategori->id,
-                            'nama_kategori' => $item->kategori->nama_kategori,
-                            'icon' => $item->kategori->icon,
-                            'color' => $item->kategori->color ?? '#10b981',
-                        ],
-                        'harga_per_kg' => (float)$item->harga_per_kg,
-                        'satuan' => $item->satuan,
-                        'kode' => $item->kode,
-                        'is_active' => $item->is_active,
-                        'updated_at' => $item->updated_at,
-                    ];
-                }),
+                'data' => JenisSampahResource::collection($jenisSampah),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -170,20 +154,7 @@ class JenisSampahController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'id' => $jenis->id,
-                    'nama_jenis' => $jenis->nama_jenis,
-                    'kategori_sampah' => [
-                        'id' => $jenis->kategori->id,
-                        'nama_kategori' => $jenis->kategori->nama_kategori,
-                        'icon' => $jenis->kategori->icon,
-                        'color' => $jenis->kategori->color ?? '#10b981',
-                    ],
-                    'harga_per_kg' => (float)$jenis->harga_per_kg,
-                    'satuan' => $jenis->satuan,
-                    'kode' => $jenis->kode,
-                    'is_active' => $jenis->is_active,
-                ]
+                'data' => new JenisSampahResource($jenis)
             ]);
         } catch (\Exception $e) {
             return response()->json([
