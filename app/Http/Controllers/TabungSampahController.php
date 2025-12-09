@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\LogAktivitas;
 use App\Services\BadgeService;
 use App\Services\PointService;
+use App\Http\Resources\TabungSampahResource;
 
 class TabungSampahController extends Controller
 {
@@ -26,7 +27,7 @@ class TabungSampahController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $data
+            'data' => TabungSampahResource::collection($data)
         ]);
     }
 
@@ -56,7 +57,7 @@ class TabungSampahController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Setor sampah berhasil!',
-            'data' => $data
+            'data' => new TabungSampahResource($data)
         ], 201);
     }
 
@@ -65,7 +66,7 @@ class TabungSampahController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data' => $tabungSampah->load(['user', 'jadwal'])
+            'data' => new TabungSampahResource($tabungSampah->load(['user', 'jadwal']))
         ]);
     }
 
@@ -93,7 +94,7 @@ class TabungSampahController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Data berhasil diupdate',
-            'data' => $tabungSampah
+            'data' => new TabungSampahResource($tabungSampah)
         ]);
     }
 
@@ -108,24 +109,22 @@ class TabungSampahController extends Controller
         ]);
     }
 
-    // Get tabung sampah by user
     public function byUser(Request $request, $id)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot access other user\'s data'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $data = TabungSampah::where('user_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
 
         return response()->json([
             'status' => 'success',
-            'data' => $data
+            'data' => TabungSampahResource::collection($data)
         ]);
     }
 
@@ -144,7 +143,7 @@ class TabungSampahController extends Controller
             ]);
 
             \Log::info("Approving tabung_sampah", [
-                'id' => $id,
+                'tabung_sampah_id' => $id,
                 'user_id' => $tabungSampah->user_id,
                 'berat_kg' => $validated['berat_kg'],
                 'poin_didapat' => $validated['poin_didapat'],
@@ -187,7 +186,7 @@ class TabungSampahController extends Controller
                 'status' => 'success',
                 'message' => 'Penyetoran disetujui!',
                 'data' => [
-                    'tabung_sampah' => $tabungSampah->fresh(),
+                    'tabung_sampah' => new TabungSampahResource($tabungSampah->fresh()),
                     'user' => $user->fresh(),
                     'poin_diberikan' => $pointCalculation['total'],
                     'breakdown' => $pointCalculation['breakdown'],
@@ -233,7 +232,7 @@ class TabungSampahController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Penyetoran ditolak',
-            'data' => $tabungSampah,
+            'data' => new TabungSampahResource($tabungSampah),
         ]);
     }
 }
