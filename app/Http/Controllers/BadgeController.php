@@ -7,6 +7,7 @@ use App\Services\BadgeService;
 use App\Services\BadgeProgressService;
 use App\Models\Badge;
 use App\Models\User;
+use App\Http\Resources\BadgeResource;
 
 class BadgeController extends Controller
 {
@@ -26,7 +27,7 @@ class BadgeController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $badges,
+            'data' => BadgeResource::collection($badges),
         ]);
     }
 
@@ -39,11 +40,27 @@ class BadgeController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $progress,
+            'data' => collect($progress)->map(function($item) {
+                return [
+                    'badge_id' => $item['badge_id'],
+                    'nama' => $item['nama'],
+                    'deskripsi' => $item['deskripsi'],
+                    'icon' => $item['icon'],
+                    'reward_poin' => $item['reward_poin'],
+                    'tipe' => $item['tipe'],
+                    'syarat_poin' => $item['syarat_poin'],
+                    'syarat_setor' => $item['syarat_setor'],
+                    'current_value' => $item['current_value'],
+                    'target_value' => $item['target_value'],
+                    'progress_percentage' => $item['progress_percentage'],
+                    'is_unlocked' => $item['is_unlocked'],
+                    'unlocked_at' => $item['unlocked_at'],
+                ];
+            }),
         ]);
     }
 
-        /**
+    /**
      * New: Get user's badges with filter support (all|unlocked|locked)
      * Query: ?filter=all|unlocked|locked
      * If userId omitted, use authenticated user
@@ -77,7 +94,7 @@ class BadgeController extends Controller
                 'status' => 'success',
                 'data' => $result['data']->map(function($progress) {
                     return [
-                        'badge_id' => $progress->badge->id,
+                        'badge_id' => $progress->badge->badge_id,
                         'nama' => $progress->badge->nama,
                         'deskripsi' => $progress->badge->deskripsi,
                         'icon' => $progress->badge->icon,
@@ -117,7 +134,7 @@ class BadgeController extends Controller
                 ? 'Badge(s) baru diberikan!'
                 : 'Tidak ada badge baru.',
             'data' => [
-                'newly_unlocked' => $newBadges,
+                'newly_unlocked' => BadgeResource::collection($newBadges),
                 'count' => count($newBadges),
             ],
         ]);
