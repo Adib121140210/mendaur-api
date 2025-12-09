@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PenukaranProduk;
 use App\Services\PointService;
 use Illuminate\Http\Request;
+use App\Http\Resources\PenukaranProdukResource;
 
 class PenukaranProdukController extends Controller
 {
@@ -16,7 +17,7 @@ class PenukaranProdukController extends Controller
     {
         try {
             $query = PenukaranProduk::with('produk')
-                ->where('user_id', $request->user()->id)
+                ->where('user_id', $request->user()->user_id)
                 ->orderBy('created_at', 'desc');
 
             // Filter by status if provided
@@ -26,39 +27,14 @@ class PenukaranProdukController extends Controller
 
             $redemptions = $query->get();
 
-            // Transform data to match frontend expectations
-            $transformedData = $redemptions->map(function ($redemption) {
-                return [
-                    'id' => $redemption->id,
-                    'produk_id' => $redemption->produk_id,
-                    'nama_produk' => $redemption->nama_produk,
-                    'jumlah_poin' => $redemption->poin_digunakan,
-                    'jumlah' => $redemption->jumlah,
-                    'status' => $redemption->status,
-                    'metode_ambil' => $redemption->metode_ambil,
-                    'catatan_admin' => $redemption->catatan,
-                    'created_at' => $redemption->created_at?->toISOString(),
-                    'tanggal_penukaran' => $redemption->tanggal_penukaran?->toISOString(),
-                    'tanggal_diambil' => $redemption->tanggal_diambil?->toISOString(),
-                    'produk' => $redemption->produk ? [
-                        'id' => $redemption->produk->id,
-                        'nama' => $redemption->produk->nama,
-                        'deskripsi' => $redemption->produk->deskripsi,
-                        'poin' => $redemption->produk->poin,
-                        'stok' => $redemption->produk->stok,
-                        'foto' => $redemption->produk->foto,
-                    ] : null,
-                ];
-            });
-
             return response()->json([
                 'status' => 'success',
-                'data' => $transformedData
+                'data' => PenukaranProdukResource::collection($redemptions)
             ], 200);
 
         } catch (\Exception $e) {
             \Log::error('Error fetching product redemptions:', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()->user_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -78,35 +54,12 @@ class PenukaranProdukController extends Controller
     {
         try {
             $redemption = PenukaranProduk::with('produk')
-                ->where('user_id', $request->user()->id)
+                ->where('user_id', $request->user()->user_id)
                 ->findOrFail($id);
-
-            // Transform data to match frontend expectations
-            $transformedData = [
-                'id' => $redemption->id,
-                'produk_id' => $redemption->produk_id,
-                'nama_produk' => $redemption->nama_produk,
-                'jumlah_poin' => $redemption->poin_digunakan,
-                'jumlah' => $redemption->jumlah,
-                'status' => $redemption->status,
-                'metode_ambil' => $redemption->metode_ambil,
-                'catatan_admin' => $redemption->catatan,
-                'created_at' => $redemption->created_at?->toISOString(),
-                'tanggal_penukaran' => $redemption->tanggal_penukaran?->toISOString(),
-                'tanggal_diambil' => $redemption->tanggal_diambil?->toISOString(),
-                'produk' => $redemption->produk ? [
-                    'id' => $redemption->produk->id,
-                    'nama' => $redemption->produk->nama,
-                    'deskripsi' => $redemption->produk->deskripsi,
-                    'poin' => $redemption->produk->poin,
-                    'stok' => $redemption->produk->stok,
-                    'foto' => $redemption->produk->foto,
-                ] : null,
-            ];
 
             return response()->json([
                 'status' => 'success',
-                'data' => $transformedData
+                'data' => new PenukaranProdukResource($redemption)
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -117,7 +70,7 @@ class PenukaranProdukController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error fetching redemption detail:', [
                 'redemption_id' => $id,
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()->user_id,
                 'error' => $e->getMessage()
             ]);
 
@@ -194,8 +147,8 @@ class PenukaranProdukController extends Controller
             try {
                 // Create redemption record
                 $redemption = PenukaranProduk::create([
-                    'user_id' => $user->id,
-                    'produk_id' => $produk->id,
+                    'user_id' => $user->user_id,
+                    'produk_id' => $produk->produk_id,
                     'nama_produk' => $produk->nama,
                     'poin_digunakan' => $totalPoin,
                     'jumlah' => $jumlah,
@@ -215,31 +168,10 @@ class PenukaranProdukController extends Controller
                 $redemption->load('produk');
                 $user->refresh();
 
-                // Transform response
-                $transformedData = [
-                    'id' => $redemption->id,
-                    'produk_id' => $redemption->produk_id,
-                    'nama_produk' => $redemption->nama_produk,
-                    'jumlah_poin' => $redemption->poin_digunakan,
-                    'jumlah' => $redemption->jumlah,
-                    'status' => $redemption->status,
-                    'metode_ambil' => $redemption->metode_ambil,
-                    'catatan_admin' => $redemption->catatan,
-                    'tanggal_penukaran' => $redemption->tanggal_penukaran?->toISOString(),
-                    'tanggal_diambil' => $redemption->tanggal_diambil?->toISOString(),
-                    'created_at' => $redemption->created_at?->toISOString(),
-                    'produk' => [
-                        'id' => $produk->id,
-                        'nama' => $produk->nama,
-                        'poin' => $produk->poin,
-                        'foto' => $produk->foto,
-                    ]
-                ];
-
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Penukaran produk berhasil dibuat',
-                    'data' => $transformedData
+                    'data' => new PenukaranProdukResource($redemption)
                 ], 201);
 
             } catch (\Exception $e) {
@@ -255,7 +187,7 @@ class PenukaranProdukController extends Controller
             ], 422);
         } catch (\Exception $e) {
             \Log::error('Error creating product redemption:', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()->user_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -288,7 +220,7 @@ class PenukaranProdukController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Penukaran berhasil diperbarui',
-                'data' => $redemption
+                'data' => new PenukaranProdukResource($redemption)
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -316,7 +248,7 @@ class PenukaranProdukController extends Controller
     public function cancel(Request $request, $id)
     {
         try {
-            $redemption = PenukaranProduk::where('user_id', $request->user()->id)
+            $redemption = PenukaranProduk::where('user_id', $request->user()->user_id)
                 ->findOrFail($id);
 
             // Only allow canceling pending orders
@@ -373,7 +305,7 @@ class PenukaranProdukController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error cancelling redemption:', [
                 'redemption_id' => $id,
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()->user_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -392,7 +324,7 @@ class PenukaranProdukController extends Controller
     public function destroy(Request $request, $id)
     {
         try {
-            $redemption = PenukaranProduk::where('user_id', $request->user()->id)
+            $redemption = PenukaranProduk::where('user_id', $request->user()->user_id)
                 ->findOrFail($id);
 
             // Only allow deleting pending or cancelled orders
@@ -439,7 +371,7 @@ class PenukaranProdukController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error deleting redemption:', [
                 'redemption_id' => $id,
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()->user_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
