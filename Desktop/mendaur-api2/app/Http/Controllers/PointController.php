@@ -17,8 +17,16 @@ class PointController extends Controller
      * @param int $id User ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getUserPoints($id)
+    public function getUserPoints(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s data'
+            ], 403);
+        }
+        
         try {
             $user = User::findOrFail($id);
             
@@ -117,8 +125,16 @@ class PointController extends Controller
      * @param int $id User ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getRedeemHistory($id)
+    public function getRedeemHistory(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s data'
+            ], 403);
+        }
+        
         try {
             $user = User::findOrFail($id);
             
@@ -155,8 +171,16 @@ class PointController extends Controller
      * @param int $id User ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getStatistics($id)
+    public function getStatistics(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s data'
+            ], 403);
+        }
+        
         try {
             $user = User::findOrFail($id);
             

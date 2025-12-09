@@ -13,8 +13,16 @@ class UserController extends Controller
     /**
      * Get user profile by ID
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        // IDOR Protection: User can only access their own profile
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s profile'
+            ], 403);
+        }
+        
         $user = User::findOrFail($id);
 
         return response()->json([
@@ -28,6 +36,14 @@ class UserController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // IDOR Protection: User can only update their own profile
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot update other user\'s profile'
+            ], 403);
+        }
+        
         $request->validate([
             'nama' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $id,
@@ -50,6 +66,14 @@ class UserController extends Controller
      */
     public function updatePhoto(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot update other user\'s photo'
+            ], 403);
+        }
+        
         $request->validate([
             'foto_profil' => 'required|image|mimes:jpeg,jpg,png,gif|max:2048',
         ]);
@@ -78,8 +102,16 @@ class UserController extends Controller
     /**
      * Get user's tabung sampah history
      */
-    public function tabungSampahHistory($id)
+    public function tabungSampahHistory(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s data'
+            ], 403);
+        }
+        
         $history = TabungSampah::where('user_id', $id)
             ->with('jadwal')
             ->orderBy('created_at', 'desc')
@@ -94,8 +126,16 @@ class UserController extends Controller
     /**
      * Get user's badges/achievements
      */
-    public function badges($id)
+    public function badges(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s data'
+            ], 403);
+        }
+        
         $user = User::findOrFail($id);
 
         // Get badges through the many-to-many relationship
@@ -130,6 +170,14 @@ class UserController extends Controller
      */
     public function aktivitas(Request $request, $id)
     {
+        // IDOR Protection
+        if ((int)$request->user()->id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Cannot access other user\'s data'
+            ], 403);
+        }
+        
         // Verify user exists
         User::findOrFail($id);
 
