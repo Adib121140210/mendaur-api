@@ -4,14 +4,18 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    protected $primaryKey = 'user_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -35,6 +39,7 @@ class User extends Authenticatable
         'total_setor_sampah',
         'level',
         'role_id',
+        'status',
         'tipe_nasabah',
         'poin_tercatat',
         'nama_bank',
@@ -61,6 +66,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'deleted_at' => 'datetime',
             'password' => 'hashed',
             'tipe_nasabah' => 'string',
         ];
@@ -82,12 +88,12 @@ class User extends Authenticatable
      */
     public function role()
     {
-        return $this->belongsTo(Role::class, 'role_id', 'id');
+        return $this->belongsTo(Role::class, 'role_id', 'role_id');
     }
 
     public function auditLogs()
     {
-        return $this->hasMany(AuditLog::class, 'admin_id', 'id');
+        return $this->hasMany(AuditLog::class, 'admin_id', 'user_id');
     }
 
     public function tabungSampahs()
@@ -117,7 +123,7 @@ class User extends Authenticatable
 
     public function userBadges()
     {
-        return $this->hasMany(\App\Models\UserBadge::class, 'user_id', 'id');
+        return $this->hasMany(\App\Models\UserBadge::class, 'user_id', 'user_id');
     }
 
     public function notifikasis()
@@ -150,6 +156,15 @@ class User extends Authenticatable
     public function poinTransaksis()
     {
         return $this->hasMany(\App\Models\PoinTransaksi::class);
+    }
+
+    /**
+     * Accessor for legacy 'id' usage
+     * Maps to the primary key 'user_id'
+     */
+    public function getIdAttribute()
+    {
+        return $this->user_id;
     }
 
     /**
@@ -360,11 +375,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is admin (level 2)
+     * Check if user is admin (level 2) or superadmin (level 3)
      */
     public function isAdminUser(): bool
     {
-        return $this->role && $this->role->level_akses === 2;
+        return $this->role && ($this->role->level_akses === 2 || $this->role->level_akses === 3);
     }
 
     /**

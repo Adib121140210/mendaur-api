@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PenarikanTunai;
 use App\Models\Notifikasi;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -15,6 +16,14 @@ class AdminPenarikanTunaiController extends Controller
      */
     public function index(Request $request)
     {
+        // RBAC: Admin+ only - Check if user is admin or superadmin
+        if (!$request->user()->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only admins can view withdrawal requests'
+            ], 403);
+        }
+
         $query = PenarikanTunai::with('user');
 
         // Filter by status
@@ -42,11 +51,11 @@ class AdminPenarikanTunaiController extends Controller
         // Transform data for response
         $withdrawals->getCollection()->transform(function ($withdrawal) {
             return [
-                'id' => $withdrawal->id,
+                'id' => $withdrawal->penarikan_tunai_id,  // FIX: Use correct primary key
                 'user' => [
-                    'id' => $withdrawal->user->id,
-                    'name' => $withdrawal->user->nama,
-                    'email' => $withdrawal->user->email
+                    'id' => $withdrawal->user?->user_id ?? null,
+                    'name' => $withdrawal->user?->nama ?? null,
+                    'email' => $withdrawal->user?->email ?? null
                 ],
                 'jumlah_poin' => $withdrawal->jumlah_poin,
                 'jumlah_rupiah' => $withdrawal->jumlah_rupiah,
@@ -68,59 +77,147 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     /**
-     * Approve withdrawal (POST /api/admin/penarikan-tunai/{id}/approve)
+     * Get single withdrawal request detail (GET /api/admin/penarikan-tunai/{withdrawalId})
+     */
+    public function show(Request $request, $withdrawalId)
+    {
+        // RBAC: Admin+ only - Check if user is admin or superadmin
+        if (!$request->user()->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only admins can view withdrawal details'
+            ], 403);
+        }
+
+        try {
+            // FIX: Use correct primary key
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $withdrawalId)
+                ->with('user')
+                ->firstOrFail();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'id' => $withdrawal->penarikan_tunai_id,  // FIX: Use correct primary key
+                    'user' => [
+                        'id' => $withdrawal->user?->user_id,
+                        'name' => $withdrawal->user?->nama,
+                        'email' => $withdrawal->user?->email
+                    ],
+                    'jumlah_poin' => $withdrawal->jumlah_poin,
+                    'jumlah_rupiah' => $withdrawal->jumlah_rupiah,
+                    'nomor_rekening' => $withdrawal->nomor_rekening,
+                    'nama_bank' => $withdrawal->nama_bank,
+                    'nama_penerima' => $withdrawal->nama_penerima,
+                    'status' => $withdrawal->status,
+                    'catatan_admin' => $withdrawal->catatan_admin,
+                    'processed_by' => $withdrawal->processed_by,
+                    'processed_at' => $withdrawal->processed_at,
+                    'created_at' => $withdrawal->created_at
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Withdrawal record not found'
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error retrieving withdrawal detail:', [
+                'withdrawal_id' => $withdrawalId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve withdrawal detail'
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve withdrawal (PATCH /api/admin/penarikan-tunai/{id}/approve)
      */
     public function approve(Request $request, $id)
     {
-        $validated = $request->validate([
-            'catatan_admin' => 'nullable|string|max:500'
-        ]);
+        try {
+            // RBAC: Admin+ only - Check if user is admin or superadmin
+            if (!$request->user()->isAdminUser()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Admin role required'
+                ], 403);
+            }
 
-        $withdrawal = PenarikanTunai::with('user')->findOrFail($id);
+            $validated = $request->validate([
+                'catatan_admin' => 'nullable|string|max:500'
+            ]);
 
-        // Check if already processed
-        if ($withdrawal->status !== 'pending') {
+            // FIX: Use correct primary key
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $id)
+                ->with('user')
+                ->firstOrFail();
+
+            // Check if already processed
+            if ($withdrawal->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Penarikan sudah diproses sebelumnya'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+            try {
+                // Update withdrawal status
+                $withdrawal->update([
+                    'status' => 'approved',
+                    'catatan_admin' => $validated['catatan_admin'] ?? null,
+                    'processed_by' => auth()->user()->user_id,
+                    'processed_at' => now()
+                ]);
+
+                // Log the action
+                AuditLog::create([
+                    'user_id' => auth()->user()->user_id,
+                    'action_type' => 'approve_withdrawal',
+                    'resource_id' => $id,
+                    'old_values' => ['status' => 'pending'],
+                    'new_values' => ['status' => 'approved'],
+                    'ip_address' => request()->ip()
+                ]);
+
+                // Send notification to user
+                Notifikasi::create([
+                    'user_id' => $withdrawal->user_id,
+                    'judul' => 'Penarikan Tunai Disetujui',
+                    'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " telah disetujui dan sedang diproses. Dana akan ditransfer ke rekening Anda dalam 1-3 hari kerja.",
+                    'tipe' => 'penarikan_tunai',
+                    'is_read' => false
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Penarikan tunai berhasil disetujui',
+                    'data' => [
+                        'id' => $withdrawal->penarikan_tunai_id,  // FIX: Use correct primary key
+                        'status' => $withdrawal->status,
+                        'catatan_admin' => $withdrawal->catatan_admin,
+                        'processed_at' => $withdrawal->processed_at
+                    ]
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
+            }
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Penarikan sudah diproses sebelumnya'
-            ], 400);
-        }
-
-        DB::beginTransaction();
-        try {
-            // Update withdrawal status
-            $withdrawal->update([
-                'status' => 'approved',
-                'catatan_admin' => $validated['catatan_admin'] ?? null,
-                'processed_by' => auth()->id(),
-                'processed_at' => now()
-            ]);
-
-            // Send notification to user
-            Notifikasi::create([
-                'user_id' => $withdrawal->user_id,
-                'judul' => 'Penarikan Tunai Disetujui',
-                'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " telah disetujui dan sedang diproses. Dana akan ditransfer ke rekening Anda dalam 1-3 hari kerja.",
-                'tipe' => 'penarikan_tunai',
-                'is_read' => false
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Penarikan tunai berhasil disetujui',
-                'data' => [
-                    'id' => $withdrawal->id,
-                    'status' => $withdrawal->status,
-                    'catatan_admin' => $withdrawal->catatan_admin,
-                    'processed_at' => $withdrawal->processed_at
-                ]
-            ]);
-
+                'message' => 'Withdrawal record not found'
+            ], 404);
         } catch (\Exception $e) {
-            DB::rollback();
-
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan',
@@ -130,63 +227,93 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     /**
-     * Reject withdrawal and refund points (POST /api/admin/penarikan-tunai/{id}/reject)
+     * Reject withdrawal and refund points (PATCH /api/admin/penarikan-tunai/{id}/reject)
      */
     public function reject(Request $request, $id)
     {
-        $validated = $request->validate([
-            'catatan_admin' => 'required|string|max:500'
-        ]);
+        try {
+            // RBAC: Admin+ only - Check if user is admin or superadmin
+            if (!$request->user()->isAdminUser()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Admin role required'
+                ], 403);
+            }
 
-        $withdrawal = PenarikanTunai::with('user')->findOrFail($id);
+            $validated = $request->validate([
+                'catatan_admin' => 'required|string|max:500'
+            ]);
 
-        // Check if already processed
-        if ($withdrawal->status !== 'pending') {
+            // FIX: Use correct primary key
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $id)
+                ->with('user')
+                ->firstOrFail();
+
+            // Check if already processed
+            if ($withdrawal->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Penarikan sudah diproses sebelumnya'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+            try {
+                // CRITICAL: Refund points to user
+                $withdrawal->user->increment('total_poin', $withdrawal->jumlah_poin);
+
+                // Update withdrawal status
+                $withdrawal->update([
+                    'status' => 'rejected',
+                    'catatan_admin' => $validated['catatan_admin'],
+                    'processed_by' => auth()->user()->user_id,
+                    'processed_at' => now()
+                ]);
+
+                // Log the action
+                AuditLog::create([
+                    'user_id' => auth()->user()->user_id,
+                    'action_type' => 'reject_withdrawal',
+                    'resource_id' => $id,
+                    'old_values' => ['status' => 'pending'],
+                    'new_values' => ['status' => 'rejected'],
+                    'ip_address' => request()->ip()
+                ]);
+
+                // Send notification to user
+                Notifikasi::create([
+                    'user_id' => $withdrawal->user_id,
+                    'judul' => 'Penarikan Tunai Ditolak',
+                    'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " ditolak. Alasan: {$validated['catatan_admin']}. Poin sebesar {$withdrawal->jumlah_poin} telah dikembalikan ke saldo Anda.",
+                    'tipe' => 'penarikan_tunai',
+                    'is_read' => false
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Penarikan tunai ditolak dan poin dikembalikan',
+                    'data' => [
+                        'id' => $withdrawal->penarikan_tunai_id,  // FIX: Use correct primary key
+                        'status' => $withdrawal->status,
+                        'catatan_admin' => $withdrawal->catatan_admin,
+                        'processed_at' => $withdrawal->processed_at,
+                        'points_refunded' => $withdrawal->jumlah_poin
+                    ]
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
+            }
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Penarikan sudah diproses sebelumnya'
-            ], 400);
-        }
-
-        DB::beginTransaction();
-        try {
-            // CRITICAL: Refund points to user
-            $withdrawal->user->increment('total_poin', $withdrawal->jumlah_poin);
-
-            // Update withdrawal status
-            $withdrawal->update([
-                'status' => 'rejected',
-                'catatan_admin' => $validated['catatan_admin'],
-                'processed_by' => auth()->id(),
-                'processed_at' => now()
-            ]);
-
-            // Send notification to user
-            Notifikasi::create([
-                'user_id' => $withdrawal->user_id,
-                'judul' => 'Penarikan Tunai Ditolak',
-                'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " ditolak. Alasan: {$validated['catatan_admin']}. Poin sebesar {$withdrawal->jumlah_poin} telah dikembalikan ke saldo Anda.",
-                'tipe' => 'penarikan_tunai',
-                'is_read' => false
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Penarikan tunai ditolak dan poin dikembalikan',
-                'data' => [
-                    'id' => $withdrawal->id,
-                    'status' => $withdrawal->status,
-                    'catatan_admin' => $withdrawal->catatan_admin,
-                    'processed_at' => $withdrawal->processed_at,
-                    'points_refunded' => $withdrawal->jumlah_poin
-                ]
-            ]);
-
+                'message' => 'Withdrawal record not found'
+            ], 404);
         } catch (\Exception $e) {
-            DB::rollback();
-
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan',
@@ -196,40 +323,119 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     /**
-     * Get withdrawal statistics (GET /api/admin/penarikan-tunai/statistics)
-     * Optional endpoint for admin dashboard
+     * Delete/Cancel withdrawal (DELETE /api/admin/penarikan-tunai/{id})
      */
-    public function statistics()
+    public function destroy(Request $request, $id)
     {
-        $stats = [
-            'pending' => [
-                'count' => PenarikanTunai::where('status', 'pending')->count(),
-                'total_points' => PenarikanTunai::where('status', 'pending')->sum('jumlah_poin'),
-                'total_rupiah' => PenarikanTunai::where('status', 'pending')->sum('jumlah_rupiah')
-            ],
-            'approved_today' => [
-                'count' => PenarikanTunai::where('status', 'approved')
-                    ->whereDate('processed_at', today())
-                    ->count(),
-                'total_rupiah' => PenarikanTunai::where('status', 'approved')
-                    ->whereDate('processed_at', today())
-                    ->sum('jumlah_rupiah')
-            ],
-            'approved_this_month' => [
-                'count' => PenarikanTunai::where('status', 'approved')
-                    ->whereMonth('processed_at', now()->month)
-                    ->whereYear('processed_at', now()->year)
-                    ->count(),
-                'total_rupiah' => PenarikanTunai::where('status', 'approved')
-                    ->whereMonth('processed_at', now()->month)
-                    ->whereYear('processed_at', now()->year)
-                    ->sum('jumlah_rupiah')
-            ]
-        ];
+        try {
+            // RBAC: Admin+ only - Check if user is admin or superadmin
+            if (!$request->user()->isAdminUser()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Admin role required'
+                ], 403);
+            }
 
-        return response()->json([
-            'success' => true,
-            'data' => $stats
-        ]);
+            // FIX: Use correct primary key
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $id)->firstOrFail();
+
+            // Can only delete pending withdrawals
+            if ($withdrawal->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hanya penarikan dengan status pending yang dapat dihapus'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+            try {
+                $withdrawal->delete();
+
+                // Log the action
+                AuditLog::create([
+                    'user_id' => auth()->user()->user_id,
+                    'action_type' => 'delete_withdrawal',
+                    'resource_id' => $id,
+                    'old_values' => $withdrawal->toArray(),
+                    'new_values' => [],
+                    'ip_address' => request()->ip()
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Penarikan berhasil dihapus'
+                ]);
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
+            }
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Withdrawal record not found'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get withdrawal statistics (GET /api/admin/penarikan-tunai/stats)
+     */
+    public function stats(Request $request)
+    {
+        try {
+            // RBAC: Admin+ only - Check if user is admin or superadmin
+            if (!$request->user()->isAdminUser()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Admin role required'
+                ], 403);
+            }
+
+            $stats = [
+                'pending' => [
+                    'count' => PenarikanTunai::where('status', 'pending')->count(),
+                    'total_points' => PenarikanTunai::where('status', 'pending')->sum('jumlah_poin'),
+                    'total_rupiah' => PenarikanTunai::where('status', 'pending')->sum('jumlah_rupiah')
+                ],
+                'approved_today' => [
+                    'count' => PenarikanTunai::where('status', 'approved')
+                        ->whereDate('processed_at', today())
+                        ->count(),
+                    'total_rupiah' => PenarikanTunai::where('status', 'approved')
+                        ->whereDate('processed_at', today())
+                        ->sum('jumlah_rupiah')
+                ],
+                'approved_this_month' => [
+                    'count' => PenarikanTunai::where('status', 'approved')
+                        ->whereMonth('processed_at', now()->month)
+                        ->whereYear('processed_at', now()->year)
+                        ->count(),
+                    'total_rupiah' => PenarikanTunai::where('status', 'approved')
+                        ->whereMonth('processed_at', now()->month)
+                        ->whereYear('processed_at', now()->year)
+                        ->sum('jumlah_rupiah')
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
