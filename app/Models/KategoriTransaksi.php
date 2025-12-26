@@ -10,6 +10,9 @@ class KategoriTransaksi extends Model
     use HasFactory;
 
     protected $table = 'kategori_transaksi';
+    protected $primaryKey = 'kategori_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'nama',

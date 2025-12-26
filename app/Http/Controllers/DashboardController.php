@@ -36,8 +36,12 @@ class DashboardController extends Controller
         ];
 
         $currentLevel = $user->level;
+        // Normalize level to PascalCase (bronze → Bronze, silver → Silver, etc.)
+        $currentLevel = ucfirst(strtolower($currentLevel));
         $currentPoin = $user->total_poin;
         $nextLevel = $this->getNextLevel($currentLevel);
+        // Also normalize nextLevel to match array keys
+        $nextLevel = ucfirst(strtolower($nextLevel));
         $nextLevelPoin = $levelThresholds[$nextLevel]['min'] ?? $currentPoin;
         $currentLevelPoin = $levelThresholds[$currentLevel]['min'];
 
@@ -105,17 +109,17 @@ class DashboardController extends Controller
 
         // Build query with badge count
         $query = User::select(
-                'users.id',
+                'users.user_id',
                 'users.nama',
                 'users.foto_profil',
                 'users.total_poin',
                 'users.total_setor_sampah',
                 'users.level'
             )
-            ->selectRaw('COALESCE(COUNT(user_badges.id), 0) as badge_count')
-            ->leftJoin('user_badges', 'users.id', '=', 'user_badges.user_id')
+            ->selectRaw('COALESCE(COUNT(user_badges.user_badge_id), 0) as badge_count')
+            ->leftJoin('user_badges', 'users.user_id', '=', 'user_badges.user_id')
             ->groupBy(
-                'users.id',
+                'users.user_id',
                 'users.nama',
                 'users.foto_profil',
                 'users.total_poin',
@@ -132,7 +136,7 @@ class DashboardController extends Controller
                 $query->orderBy('users.total_setor_sampah', 'desc');
                 break;
             case 'badge':
-                $query->orderByRaw('COUNT(user_badges.id) DESC');
+                $query->orderByRaw('COUNT(user_badges.user_badge_id) DESC');
                 break;
         }
 
@@ -142,7 +146,7 @@ class DashboardController extends Controller
             ->map(function ($user, $index) {
                 return [
                     'rank' => $index + 1,
-                    'user_id' => $user->id,
+                    'user_id' => $user->user_id,
                     'nama' => $user->nama,
                     'foto_profil' => $user->foto_profil,
                     'total_poin' => $user->total_poin,

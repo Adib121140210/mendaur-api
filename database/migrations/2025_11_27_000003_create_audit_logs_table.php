@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('audit_logs', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('admin_id')->constrained('users')->onDelete('cascade');
+            $table->id('audit_log_id');
+            $table->unsignedBigInteger('admin_id');
             $table->string('action_type')->comment('create, update, delete, approve, reject, etc');
             $table->string('resource_type')->comment('TabungSampah, PenarikanTunai, etc');
             $table->unsignedBigInteger('resource_id');
@@ -25,6 +25,9 @@ return new class extends Migration
             $table->enum('status', ['success', 'failed'])->default('success');
             $table->text('error_message')->nullable();
             $table->timestamps();
+
+            // Foreign key constraint
+            $table->foreign('admin_id')->references('user_id')->on('users')->onDelete('cascade');
 
             // Indexes for faster queries
             $table->index('admin_id');

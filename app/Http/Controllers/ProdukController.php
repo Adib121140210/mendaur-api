@@ -44,10 +44,18 @@ class ProdukController extends Controller
     }
 
     /**
-     * Create new product (admin only)
+     * Create new product (Admin/Superadmin only)
      */
     public function store(Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'nama' => 'required|string',
             'deskripsi' => 'nullable|string',
@@ -76,10 +84,18 @@ class ProdukController extends Controller
     }
 
     /**
-     * Update product (admin only)
+     * Update product (Admin/Superadmin only)
      */
     public function update(Request $request, $id)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $produk = Produk::find($id);
 
         if (!$produk) {
@@ -117,10 +133,18 @@ class ProdukController extends Controller
     }
 
     /**
-     * Delete product (admin only)
+     * Delete product (Admin/Superadmin only)
      */
-    public function destroy($id)
+    public function destroy($id, Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $produk = Produk::find($id);
 
         if (!$produk) {

@@ -5,45 +5,40 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\TabungSampah;
+use App\Http\Resources\UserResource;
+use App\Http\Resources\TabungSampahResource;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class UserController extends Controller
 {
-    /**
-     * Get user profile by ID
-     */
     public function show(Request $request, $id)
     {
-        // IDOR Protection: User can only access their own profile
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot access other user\'s profile'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $user = User::findOrFail($id);
 
         return response()->json([
             'status' => 'success',
-            'data' => $user,
+            'data' => new UserResource($user),
         ]);
     }
 
-    /**
-     * Update user profile
-     */
     public function update(Request $request, $id)
     {
-        // IDOR Protection: User can only update their own profile
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot update other user\'s profile'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $request->validate([
             'nama' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $id,
@@ -57,23 +52,19 @@ class UserController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Profile updated successfully',
-            'data' => $user,
+            'data' => new UserResource($user),
         ]);
     }
 
-    /**
-     * Update user profile photo
-     */
     public function updatePhoto(Request $request, $id)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot update other user\'s photo'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $request->validate([
             'foto_profil' => 'required|image|mimes:jpeg,jpg,png,gif|max:2048',
         ]);
@@ -92,11 +83,62 @@ class UserController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Photo updated successfully',
+            'data' => new UserResource($user),
+        ]);
+    }
+
+    /**
+     * Upload user avatar
+     */
+    public function uploadAvatar(Request $request, $id)
+    {
+        // RBAC: User can only upload own avatar, Admin can upload for users
+        $currentUser = $request->user();
+        if ((int)$currentUser->user_id !== (int)$id && !$currentUser->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to upload avatar for this user'
+            ], 403);
+        }
+
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,jpg,png,gif|max:2048',
+        ]);
+
+        $user = User::findOrFail($id);
+
+        // Delete old avatar if exists
+        if ($user->foto_profil) {
+            Storage::disk('public')->delete($user->foto_profil);
+        }
+
+        // Store new avatar
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $user->update(['foto_profil' => $path]);
+
+        // Log the action
+        if ($currentUser->isAdminUser()) {
+            \App\Models\AuditLog::create([
+                'admin_id' => $currentUser->user_id,
+                'action_type' => 'upload_user_avatar',
+                'resource_type' => 'User',
+                'resource_id' => $id,
+                'old_values' => ['foto_profil' => $user->getOriginal('foto_profil')],
+                'new_values' => ['foto_profil' => $path],
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'status' => 'success'
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Avatar uploaded successfully',
             'data' => [
                 'foto_profil' => $path,
-                'foto_url' => asset('storage/' . $path),
-            ],
-        ]);
+                'url' => asset('storage/' . $path)
+            ]
+        ], 200);
     }
 
     /**
@@ -105,13 +147,13 @@ class UserController extends Controller
     public function tabungSampahHistory(Request $request, $id)
     {
         // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Forbidden: Cannot access other user\'s data'
             ], 403);
         }
-        
+
         $history = TabungSampah::where('user_id', $id)
             ->with('jadwal')
             ->orderBy('created_at', 'desc')
@@ -119,23 +161,19 @@ class UserController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $history,
+            'data' => TabungSampahResource::collection($history),
         ]);
     }
 
-    /**
-     * Get user's badges/achievements
-     */
     public function badges(Request $request, $id)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot access other user\'s data'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $user = User::findOrFail($id);
 
         // Get badges through the many-to-many relationship
@@ -145,7 +183,7 @@ class UserController extends Controller
             ->get()
             ->map(function($badge) {
                 return [
-                    'id' => $badge->id,
+                    'badge_id' => $badge->badge_id,
                     'nama' => $badge->nama,
                     'deskripsi' => $badge->deskripsi,
                     'icon' => $badge->icon,
@@ -162,22 +200,15 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Get user's activity log
-     *
-     * Query Parameters:
-     * - limit: number of activities (default 20, max 100)
-     */
     public function aktivitas(Request $request, $id)
     {
-        // IDOR Protection
-        if ((int)$request->user()->id !== (int)$id) {
+        if ((int)$request->user()->user_id !== (int)$id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: Cannot access other user\'s data'
+                'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         // Verify user exists
         User::findOrFail($id);
 
@@ -191,7 +222,7 @@ class UserController extends Controller
             ->get()
             ->map(function($activity) {
                 return [
-                    'id' => $activity->id,
+                    'log_user_activity_id' => $activity->log_user_activity_id,
                     'tipe_aktivitas' => $activity->tipe_aktivitas,
                     'deskripsi' => $activity->deskripsi,
                     'poin_perubahan' => (int) $activity->poin_perubahan,
@@ -202,6 +233,356 @@ class UserController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $aktivitas,
+        ]);
+    }
+
+    /**
+     * Get user's point transaction history
+     * GET /api/users/{userId}/point-history
+     */
+    public function pointHistory(Request $request, $id)
+    {
+        // IDOR Protection - Users can only see their own history, Admin can see all
+        $currentUser = $request->user();
+        if ((int)$currentUser->user_id !== (int)$id && !$currentUser->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to view this user\'s point history'
+            ], 403);
+        }
+
+        $perPage = min($request->get('per_page', 10), 100);
+        $page = $request->get('page', 1);
+
+        // Get point history from poin_transaksis or log_aktivitas
+        $history = DB::table('log_aktivitas')
+            ->where('user_id', $id)
+            ->whereNotNull('poin_perubahan')
+            ->select(
+                'log_user_activity_id as id',
+                'tipe_aktivitas as type',
+                'deskripsi as alasan',
+                DB::raw('poin_perubahan as poin_change'),
+                DB::raw('0 as poin_sebelum'),
+                DB::raw('0 as poin_sesudah'),
+                'created_at'
+            )
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $history->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'user_id' => auth()->id(),
+                    'type' => $item->type,
+                    'poin_change' => (int) $item->poin_change,
+                    'poin_sebelum' => (int) $item->poin_sebelum,
+                    'poin_sesudah' => (int) $item->poin_sesudah,
+                    'alasan' => $item->alasan,
+                    'created_at' => $item->created_at,
+                ];
+            }),
+            'pagination' => [
+                'current_page' => $history->currentPage(),
+                'per_page' => $history->perPage(),
+                'total' => $history->total(),
+                'last_page' => $history->lastPage(),
+            ]
+        ]);
+    }
+
+    /**
+     * Get user's redemption history
+     * GET /api/users/{userId}/redeem-history
+     */
+    public function redeemHistory(Request $request, $id)
+    {
+        // IDOR Protection
+        $currentUser = $request->user();
+        if ((int)$currentUser->user_id !== (int)$id && !$currentUser->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to view this user\'s redemption history'
+            ], 403);
+        }
+
+        $status = $request->get('status');
+        $perPage = min($request->get('per_page', 10), 100);
+        $page = $request->get('page', 1);
+
+        $query = DB::table('penukaran_produk')
+            ->where('user_id', $id)
+            ->orderBy('created_at', 'desc');
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $redemptions = $query->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $redemptions->map(function ($redemption) {
+                return [
+                    'id' => $redemption->penukaran_produk_id ?? $redemption->id,
+                    'user_id' => $redemption->user_id,
+                    'product_id' => $redemption->produk_id,
+                    'product' => [
+                        'id' => $redemption->produk_id,
+                        'foto' => $redemption->foto ?? null,
+                    ],
+                    'poin_digunakan' => (int) $redemption->poin_digunakan,
+                    'status' => $redemption->status,
+                    'resi_pengiriman' => $redemption->catatan ?? null,
+                    'created_at' => $redemption->created_at,
+                ];
+            }),
+            'pagination' => [
+                'current_page' => $redemptions->currentPage(),
+                'per_page' => $redemptions->perPage(),
+                'total' => $redemptions->total(),
+                'last_page' => $redemptions->lastPage(),
+            ]
+        ]);
+    }
+
+    /**
+     * Get user's waste deposit history
+     * GET /api/users/{userId}/tabung-sampah
+     */
+    public function wasteDepositHistory(Request $request, $id)
+    {
+        // IDOR Protection
+        $currentUser = $request->user();
+        if ((int)$currentUser->user_id !== (int)$id && !$currentUser->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to view this user\'s deposit history'
+            ], 403);
+        }
+
+        $status = $request->get('status');
+        $perPage = min($request->get('per_page', 10), 100);
+        $page = $request->get('page', 1);
+
+        $query = TabungSampah::where('user_id', $id)
+            ->orderBy('created_at', 'desc');
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $deposits = $query->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $deposits->map(function ($deposit) {
+                return [
+                    'id' => $deposit->tabung_sampah_id,
+                    'user_id' => $deposit->user_id,
+                    'berat_kg' => (float) $deposit->berat_kg,
+                    'foto_sampah' => $deposit->foto_sampah,
+                    'jenis_sampah' => $deposit->jenis_sampah,
+                    'status' => $deposit->status,
+                    'poin_didapat' => (int) ($deposit->poin_didapat ?? 0),
+                    'created_at' => $deposit->created_at,
+                ];
+            }),
+            'pagination' => [
+                'current_page' => $deposits->currentPage(),
+                'per_page' => $deposits->perPage(),
+                'total' => $deposits->total(),
+                'last_page' => $deposits->lastPage(),
+            ]
+        ]);
+    }
+
+    /**
+     * Get user's dashboard points summary
+     * GET /api/users/{userId}/dashboard/points
+     */
+    public function dashboardPoints(Request $request, $id)
+    {
+        // IDOR Protection
+        $currentUser = $request->user();
+        if ((int)$currentUser->user_id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to view this dashboard'
+            ], 403);
+        }
+
+        $user = User::findOrFail($id);
+
+        // Get current month
+        $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd = Carbon::now()->endOfMonth();
+
+        // Points earned this month
+        $poinEarnedThisMonth = DB::table('log_aktivitas')
+            ->where('user_id', $id)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->where('poin_perubahan', '>', 0)
+            ->sum('poin_perubahan');
+
+        // Points earned this year
+        $yearStart = Carbon::now()->startOfYear();
+        $yearEnd = Carbon::now()->endOfYear();
+        $poinEarnedThisYear = DB::table('log_aktivitas')
+            ->where('user_id', $id)
+            ->whereBetween('created_at', [$yearStart, $yearEnd])
+            ->where('poin_perubahan', '>', 0)
+            ->sum('poin_perubahan');
+
+        // Recent activities
+        $recentActivities = DB::table('log_aktivitas')
+            ->where('user_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($activity) {
+                return [
+                    'id' => $activity->log_user_activity_id,
+                    'type' => $activity->tipe_aktivitas,
+                    'description' => $activity->deskripsi,
+                    'poin_change' => (int) $activity->poin_perubahan,
+                    'created_at' => $activity->created_at,
+                ];
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'poin_saat_ini' => (int) $user->total_poin,
+                'poin_earned_bulan_ini' => (int) $poinEarnedThisMonth,
+                'poin_earned_tahun_ini' => (int) $poinEarnedThisYear,
+                'recent_activities' => $recentActivities,
+            ]
+        ]);
+    }
+
+    /**
+     * Get user's badge title
+     * GET /api/users/{userId}/badge-title
+     */
+    public function getBadgeTitle(Request $request, $id)
+    {
+        // IDOR Protection - Any user can see another user's badge title (for public profile)
+        $user = User::with('badgeTitle')->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'badge_title_id' => $user->badge_title_id,
+                'badge_title' => $user->badgeTitle ? [
+                    'badge_id' => $user->badgeTitle->badge_id,
+                    'nama' => $user->badgeTitle->nama,
+                    'deskripsi' => $user->badgeTitle->deskripsi,
+                    'icon' => $user->badgeTitle->icon,
+                ] : null,
+            ]
+        ]);
+    }
+
+    /**
+     * Set user's badge title
+     * PUT /api/users/{userId}/badge-title
+     * Body: { "badge_id": 1 } or { "badge_id": null } to remove
+     */
+    public function setBadgeTitle(Request $request, $id)
+    {
+        // IDOR Protection - Only owner can set their own badge title
+        $currentUser = $request->user();
+        if ((int)$currentUser->user_id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to set badge title for this user'
+            ], 403);
+        }
+
+        $request->validate([
+            'badge_id' => 'nullable|integer',
+        ]);
+
+        $user = User::findOrFail($id);
+        $badgeId = $request->input('badge_id');
+
+        // If badge_id is provided, verify user has unlocked this badge
+        if ($badgeId) {
+            $hasUnlockedBadge = $user->badges()
+                ->where('badges.badge_id', $badgeId)
+                ->exists();
+
+            if (!$hasUnlockedBadge) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda belum membuka badge ini. Hanya badge yang sudah diklaim yang dapat dijadikan title.'
+                ], 400);
+            }
+        }
+
+        // Update badge title
+        $user->update(['badge_title_id' => $badgeId]);
+        $user->load('badgeTitle');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $badgeId ? 'Badge title berhasil diatur' : 'Badge title berhasil dihapus',
+            'data' => [
+                'badge_title_id' => $user->badge_title_id,
+                'badge_title' => $user->badgeTitle ? [
+                    'badge_id' => $user->badgeTitle->badge_id,
+                    'nama' => $user->badgeTitle->nama,
+                    'deskripsi' => $user->badgeTitle->deskripsi,
+                    'icon' => $user->badgeTitle->icon,
+                ] : null,
+            ]
+        ]);
+    }
+
+    /**
+     * Get user's unlocked badges list (for badge title selector)
+     * GET /api/users/{userId}/badges-list
+     * Returns only badges that user has unlocked
+     */
+    public function badgesList(Request $request, $id)
+    {
+        // IDOR Protection - Only owner can see their unlocked badges list
+        $currentUser = $request->user();
+        if ((int)$currentUser->user_id !== (int)$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to view badges for this user'
+            ], 403);
+        }
+
+        $user = User::findOrFail($id);
+
+        // Get all unlocked badges
+        $unlockedBadges = $user->badges()
+            ->orderBy('user_badges.tanggal_dapat', 'desc')
+            ->get()
+            ->map(function ($badge) {
+                return [
+                    'badge_id' => $badge->badge_id,
+                    'nama' => $badge->nama,
+                    'deskripsi' => $badge->deskripsi,
+                    'icon' => $badge->icon,
+                    'reward_poin' => $badge->reward_poin,
+                    'tipe' => $badge->tipe,
+                    'tanggal_dapat' => $badge->pivot->tanggal_dapat,
+                ];
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'unlocked_badges' => $unlockedBadges,
+                'count' => $unlockedBadges->count(),
+                'current_badge_title_id' => $user->badge_title_id,
+            ]
         ]);
     }
 }

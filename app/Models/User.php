@@ -45,6 +45,7 @@ class User extends Authenticatable
         'nama_bank',
         'nomor_rekening',
         'atas_nama_rekening',
+        'badge_title_id', // Selected badge to display as user title
     ];
 
     /**
@@ -126,6 +127,14 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\UserBadge::class, 'user_id', 'user_id');
     }
 
+    /**
+     * Get the selected badge title for the user
+     */
+    public function badgeTitle()
+    {
+        return $this->belongsTo(\App\Models\Badge::class, 'badge_title_id', 'badge_id');
+    }
+
     public function notifikasis()
     {
         return $this->hasMany(Notifikasi::class);
@@ -175,12 +184,6 @@ class User extends Authenticatable
     {
         return $this->level === 'admin';
     }
-
-    /**
-     * ===================================================================
-     * RBAC & PERMISSION METHODS
-     * ===================================================================
-     */
 
     /**
      * Check if user has a specific role
@@ -254,12 +257,6 @@ class User extends Authenticatable
         }
         return $this->role->getInheritedPermissions();
     }
-
-    /**
-     * ===================================================================
-     * DUAL-NASABAH & POIN METHODS
-     * ===================================================================
-     */
 
     /**
      * Check if this user is konvensional nasabah
@@ -357,14 +354,7 @@ class User extends Authenticatable
         if ($this->isNasabahKonvensional()) {
             $this->increment('total_poin', $amount);
         }
-        // For modern nasabah, only record it as tercatat (done separately)
     }
-
-    /**
-     * ===================================================================
-     * ROLE & PERMISSION HIERARCHY SHORTCUTS
-     * ===================================================================
-     */
 
     /**
      * Check if user is nasabah (level 1)

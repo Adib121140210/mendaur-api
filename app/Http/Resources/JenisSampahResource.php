@@ -17,9 +17,11 @@ class JenisSampahResource extends JsonResource
         return [
             'jenis_sampah_id' => $this->jenis_sampah_id,
             'kategori_sampah_id' => $this->kategori_sampah_id,
-            'nama' => $this->nama,
+            'nama_jenis' => $this->nama_jenis,
             'harga_per_kg' => $this->harga_per_kg,
-            'deskripsi' => $this->deskripsi,
+            'satuan' => $this->satuan,
+            'kode' => $this->kode,
+            'is_active' => $this->is_active,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

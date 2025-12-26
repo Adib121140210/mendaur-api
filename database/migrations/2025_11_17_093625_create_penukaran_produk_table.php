@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('penukaran_produk', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('produk_id')->constrained('produks')->onDelete('cascade');
+            $table->id('penukaran_produk_id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('produk_id');
             $table->string('nama_produk');
             $table->integer('poin_digunakan');
             $table->integer('jumlah')->default(1);
@@ -28,6 +28,10 @@ return new class extends Migration
             // Indexes for performance
             $table->index(['user_id', 'status'], 'idx_user_status');
             $table->index('created_at', 'idx_created_at');
+            
+            // Foreign keys with explicit column references
+            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
+            $table->foreign('produk_id')->references('produk_id')->on('produks')->onDelete('cascade');
         });
     }
 

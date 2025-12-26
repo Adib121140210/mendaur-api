@@ -10,6 +10,9 @@ class PenarikanTunai extends Model
     use HasFactory;
 
     protected $table = 'penarikan_tunai';
+    protected $primaryKey = 'penarikan_tunai_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'user_id',
@@ -37,12 +40,12 @@ class PenarikanTunai extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     public function processedBy()
     {
-        return $this->belongsTo(User::class, 'processed_by');
+        return $this->belongsTo(User::class, 'processed_by', 'user_id');
     }
 
     /**

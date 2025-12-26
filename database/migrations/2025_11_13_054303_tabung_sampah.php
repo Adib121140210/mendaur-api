@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tabung_sampah', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('jadwal_id')->constrained('jadwal_penyetorans')->onDelete('cascade');
+            $table->id('tabung_sampah_id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('jadwal_penyetoran_id');
             $table->string('nama_lengkap');
             $table->string('no_hp');
             $table->text('titik_lokasi');
@@ -24,6 +24,10 @@ return new class extends Migration
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->integer('poin_didapat')->default(0);
             $table->timestamps();
+
+            // Foreign key constraints
+            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
+            $table->foreign('jadwal_penyetoran_id')->references('jadwal_penyetoran_id')->on('jadwal_penyetorans')->onDelete('cascade');
         });
     }
 

@@ -10,6 +10,9 @@ class PoinTransaksi extends Model
     use HasFactory;
 
     protected $table = 'poin_transaksis';
+    protected $primaryKey = 'poin_transaksi_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     /**
      * The attributes that are mass assignable.

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
+            $table->id('user_id');
             $table->string('no_hp')->unique();
             $table->string('nama');
             $table->string('email')->unique();
@@ -33,11 +33,14 @@ return new class extends Migration
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index()->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
             $table->integer('last_activity')->index();
+
+            // Foreign key will be added after users table primary key is renamed to user_id
+            // $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

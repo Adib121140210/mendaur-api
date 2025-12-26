@@ -32,7 +32,7 @@ class PointController extends Controller
                 'status' => 'success',
                 'data' => [
                     'user' => [
-                        'id' => $user->id,
+                        'user_id' => $user->user_id,
                         'nama' => $user->nama,
                         'total_poin' => $user->total_poin,
                         'level' => $user->level ?? 'Bronze',
@@ -172,7 +172,7 @@ class PointController extends Controller
                 'status' => 'success',
                 'data' => [
                     'user' => [
-                        'id' => $user->id,
+                        'user_id' => $user->user_id,
                         'nama' => $user->nama,
                     ],
                     'statistics' => $stats,
@@ -268,7 +268,7 @@ class PointController extends Controller
             // TODO: Add admin middleware check
 
             $validated = $request->validate([
-                'user_id' => 'required|exists:users,id',
+                'user_id' => 'required|exists:users,user_id',
                 'points' => 'required|integer|min:1',
                 'reason' => 'required|string|max:255',
             ]);
@@ -287,7 +287,7 @@ class PointController extends Controller
                 'message' => 'Bonus poin berhasil diberikan',
                 'data' => [
                     'transaction_id' => $transaction->id,
-                    'user_id' => $user->id,
+                    'user_id' => $user->user_id,
                     'points_awarded' => $validated['points'],
                     'new_balance' => $user->fresh()->total_poin,
                 ],

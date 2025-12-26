@@ -284,4 +284,184 @@ class SystemSettingsController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Create database backup
+     * POST /api/superadmin/backup
+     */
+    public function backup(Request $request)
+    {
+        // Verify superadmin role
+        if (!$request->user()?->isSuperAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized - Superadmin role required',
+            ], 403);
+        }
+
+        try {
+            $backupDir = storage_path('backups');
+
+            // Create backup directory if it doesn't exist
+            if (!is_dir($backupDir)) {
+                mkdir($backupDir, 0755, true);
+            }
+
+            $timestamp = now()->format('Y-m-d_His');
+            $database = env('DB_DATABASE');
+            $host = env('DB_HOST');
+            $user = env('DB_USERNAME');
+            $password = env('DB_PASSWORD');
+
+            // Create backup filename
+            $backupFile = "{$backupDir}/{$database}_backup_{$timestamp}.sql";
+
+            // Build mysqldump command
+            $command = sprintf(
+                'mysqldump --host=%s --user=%s --password=%s %s > %s',
+                escapeshellarg($host),
+                escapeshellarg($user),
+                escapeshellarg($password),
+                escapeshellarg($database),
+                escapeshellarg($backupFile)
+            );
+
+            // Execute backup command
+            $output = null;
+            $exitCode = null;
+            exec($command, $output, $exitCode);
+
+            if ($exitCode !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membuat backup database',
+                    'error' => 'Backup command failed with exit code: ' . $exitCode
+                ], 500);
+            }
+
+            // Get file size
+            $fileSize = filesize($backupFile);
+            $fileSizeMB = round($fileSize / (1024 * 1024), 2);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Database backup berhasil dibuat',
+                'data' => [
+                    'filename' => basename($backupFile),
+                    'path' => $backupFile,
+                    'database' => $database,
+                    'file_size_mb' => $fileSizeMB,
+                    'created_at' => now(),
+                    'timestamp' => $timestamp,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat backup database',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * List all database backups
+     * GET /api/superadmin/backups
+     */
+    public function listBackups(Request $request)
+    {
+        // Verify superadmin role
+        if (!$request->user()?->isSuperAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized - Superadmin role required',
+            ], 403);
+        }
+
+        try {
+            $backupDir = storage_path('backups');
+
+            if (!is_dir($backupDir)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'No backups found',
+                ]);
+            }
+
+            $files = array_diff(scandir($backupDir), ['.', '..']);
+            $backups = [];
+
+            foreach ($files as $file) {
+                if (strpos($file, '.sql') !== false) {
+                    $filePath = $backupDir . '/' . $file;
+                    $backups[] = [
+                        'filename' => $file,
+                        'size_mb' => round(filesize($filePath) / (1024 * 1024), 2),
+                        'created_at' => date('Y-m-d H:i:s', filectime($filePath)),
+                    ];
+                }
+            }
+
+            // Sort by creation time (newest first)
+            usort($backups, fn($a, $b) => strtotime($b['created_at']) <=> strtotime($a['created_at']));
+
+            return response()->json([
+                'success' => true,
+                'data' => $backups,
+                'count' => count($backups),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil daftar backup',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a backup file
+     * DELETE /api/superadmin/backups/{filename}
+     */
+    public function deleteBackup(Request $request, $filename)
+    {
+        // Verify superadmin role
+        if (!$request->user()?->isSuperAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized - Superadmin role required',
+            ], 403);
+        }
+
+        try {
+            $backupDir = storage_path('backups');
+            $filePath = $backupDir . '/' . basename($filename); // Prevent directory traversal
+
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Backup file tidak ditemukan',
+                ], 404);
+            }
+
+            if (!unlink($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghapus backup file',
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Backup berhasil dihapus',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus backup',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

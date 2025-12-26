@@ -12,17 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('poin_transaksis', function (Blueprint $table) {
-            $table->id();
+            $table->id('poin_transaksi_id');
 
             // Foreign keys
-            $table->foreignId('user_id')
-                ->constrained('users')
-                ->onDelete('cascade');
+            $table->unsignedBigInteger('user_id');
 
-            $table->foreignId('tabung_sampah_id')
-                ->nullable()
-                ->constrained('tabung_sampah')
-                ->onDelete('set null');
+            $table->unsignedBigInteger('tabung_sampah_id')
+                ->nullable();
 
             // Waste deposit info (denormalized for readability)
             $table->string('jenis_sampah')->nullable()->comment('Type of waste');
@@ -48,6 +44,10 @@ return new class extends Migration
 
             // Prevent duplicate entries for same deposit
             $table->unique(['user_id', 'tabung_sampah_id', 'sumber'], 'unique_user_deposit_source');
+            
+            // Foreign keys with explicit column references
+            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
+            $table->foreign('tabung_sampah_id')->references('tabung_sampah_id')->on('tabung_sampah')->onDelete('set null');
         });
     }
 

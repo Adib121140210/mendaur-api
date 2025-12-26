@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('notifikasi', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->id('notifikasi_id');
+            $table->unsignedBigInteger('user_id');
             $table->string('judul');
             $table->text('pesan');
             $table->string('tipe')->default('info'); // Changed from enum to string for flexibility
@@ -21,6 +21,9 @@ return new class extends Migration
             $table->unsignedBigInteger('related_id')->nullable(); // For linking to related records
             $table->string('related_type')->nullable(); // Polymorphic type
             $table->timestamps();
+            
+            // Foreign key with explicit column reference
+            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
         });
     }
 

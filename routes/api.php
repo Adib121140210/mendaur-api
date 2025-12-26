@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\TransaksiController;
 use App\Http\Controllers\TabungSampahController;
 use App\Http\Controllers\JadwalPenyetoranController;
@@ -20,14 +21,38 @@ use App\Http\Controllers\KategoriSampahController;
 use App\Http\Controllers\PointController;
 use App\Http\Controllers\AdminPointController;
 use App\Http\Controllers\DashboardAdminController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminAnalyticsController;
+use App\Http\Controllers\Admin\AdminLeaderboardController;
+use App\Http\Controllers\Admin\AdminPointsController;
+use App\Http\Controllers\Admin\AdminReportsController;
+use App\Http\Controllers\Admin\AdminWasteController;
+use App\Http\Controllers\Admin\AdminPenukaranProdukController;
+use App\Http\Controllers\Admin\AdminManagementController;
+use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\PermissionAssignmentController;
+use App\Http\Controllers\Admin\BadgeManagementController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\SystemSettingsController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Admin\ActivityLogController;
 
-// ========================================
-// PUBLIC ROUTES (No Authentication)
-// ========================================
+/*
+|--------------------------------------------------------------------------
+| Public Routes
+|--------------------------------------------------------------------------
+*/
 
 // Auth Routes
 Route::post('login', [AuthController::class, 'login'])->name('login');
 Route::post('register', [AuthController::class, 'register']);
+
+// Forgot Password Routes (Public)
+Route::post('forgot-password', [ForgotPasswordController::class, 'sendOTP']);
+Route::post('verify-otp', [ForgotPasswordController::class, 'verifyOTP']);
+Route::post('reset-password', [ForgotPasswordController::class, 'resetPassword']);
+Route::post('resend-otp', [ForgotPasswordController::class, 'resendOTP']); // Optional
 
 // Jadwal Penyetoran (Public - for form)
 Route::get('jadwal-penyetoran', [JadwalPenyetoranController::class, 'index']);
@@ -38,11 +63,11 @@ Route::get('jadwal-penyetoran-aktif', [JadwalPenyetoranController::class, 'aktif
 Route::get('jenis-sampah', [JenisSampahController::class, 'index']);
 Route::get('jenis-sampah/{id}', [JenisSampahController::class, 'show']);
 
-// NEW: Hierarchical Kategori Sampah System
-Route::get('kategori-sampah', [KategoriSampahController::class, 'index']); // Get all categories with their jenis
-Route::get('kategori-sampah/{id}', [KategoriSampahController::class, 'show']); // Get specific category
-Route::get('kategori-sampah/{id}/jenis', [KategoriSampahController::class, 'getJenisByKategori']); // Get jenis by category
-Route::get('jenis-sampah-all', [KategoriSampahController::class, 'getAllJenisSampah']); // Get flat list of all jenis (for dropdowns)
+// Hierarchical Kategori Sampah System
+Route::get('kategori-sampah', [KategoriSampahController::class, 'index']);
+Route::get('kategori-sampah/{id}', [KategoriSampahController::class, 'show']);
+Route::get('kategori-sampah/{id}/jenis', [KategoriSampahController::class, 'getJenisByKategori']);
+Route::get('jenis-sampah-all', [KategoriSampahController::class, 'getAllJenisSampah']);
 
 // Produk (Public - for browsing)
 Route::get('produk', [ProdukController::class, 'index']);
@@ -52,9 +77,11 @@ Route::get('produk/{id}', [ProdukController::class, 'show']);
 Route::get('artikel', [ArtikelController::class, 'index']);
 Route::get('artikel/{slug}', [ArtikelController::class, 'show']);
 
-// ========================================
-// PROTECTED ROUTES (Require Authentication)
-// ========================================
+/*
+|--------------------------------------------------------------------------
+| Protected Routes (Require Authentication)
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -68,47 +95,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('users/{id}/tabung-sampah', [TabungSampahController::class, 'byUser']);
 
     // Transaksi
-    Route::apiResource('transaksi', TransaksiController::class);
-    Route::get('users/{id}/transaksi', [TransaksiController::class, 'byUser']);
-
-    // Jadwal Management (Admin only - add middleware later)
     Route::post('jadwal-penyetoran', [JadwalPenyetoranController::class, 'store']);
     Route::put('jadwal-penyetoran/{id}', [JadwalPenyetoranController::class, 'update']);
     Route::delete('jadwal-penyetoran/{id}', [JadwalPenyetoranController::class, 'destroy']);
 
-    // ========================================
-    // KATEGORI & JENIS SAMPAH MANAGEMENT (Admin)
-    // ========================================
-    Route::post('kategori-sampah', [KategoriSampahController::class, 'store']);
-    Route::put('kategori-sampah/{id}', [KategoriSampahController::class, 'update']);
-    Route::delete('kategori-sampah/{id}', [KategoriSampahController::class, 'destroy']);
+    // Kategori & Jenis Sampah Management (Admin/Superadmin Only)
+    Route::middleware('role:superadmin')->group(function () {
+        Route::post('kategori-sampah', [KategoriSampahController::class, 'store']);
+        Route::put('kategori-sampah/{id}', [KategoriSampahController::class, 'update']);
+        Route::delete('kategori-sampah/{id}', [KategoriSampahController::class, 'destroy']);
 
-    Route::post('jenis-sampah', [JenisSampahController::class, 'store']);
-    Route::put('jenis-sampah/{id}', [JenisSampahController::class, 'update']);
-    Route::delete('jenis-sampah/{id}', [JenisSampahController::class, 'destroy']);
+        Route::post('jenis-sampah', [JenisSampahController::class, 'store']);
+        Route::put('jenis-sampah/{id}', [JenisSampahController::class, 'update']);
+        Route::delete('jenis-sampah/{id}', [JenisSampahController::class, 'destroy']);
 
-    // ========================================
-    // CASH WITHDRAWAL ROUTES (User)
-    // ========================================
+        // Product Management (Superadmin Only)
+        Route::post('produk', [ProdukController::class, 'store']);
+        Route::put('produk/{id}', [ProdukController::class, 'update']);
+        Route::delete('produk/{id}', [ProdukController::class, 'destroy']);
+
+        // Article Management (Superadmin Only)
+        Route::post('artikel', [ArtikelController::class, 'store']);
+        Route::put('artikel/{id}', [ArtikelController::class, 'update']);
+        Route::delete('artikel/{id}', [ArtikelController::class, 'destroy']);
+    });
+
+    // Cash Withdrawal Routes (User)
     Route::get('penarikan-tunai', [PenarikanTunaiController::class, 'index']);
     Route::post('penarikan-tunai', [PenarikanTunaiController::class, 'store']);
     Route::get('penarikan-tunai/summary', [PenarikanTunaiController::class, 'summary']);
     Route::get('penarikan-tunai/{id}', [PenarikanTunaiController::class, 'show']);
 
-    // ========================================
-    // CASH WITHDRAWAL ROUTES (Admin)
-    // ========================================
-    // TODO: Add admin middleware check
-    Route::prefix('admin')->group(function () {
-        Route::get('penarikan-tunai', [AdminPenarikanTunaiController::class, 'index']);
-        Route::post('penarikan-tunai/{id}/approve', [AdminPenarikanTunaiController::class, 'approve']);
-        Route::post('penarikan-tunai/{id}/reject', [AdminPenarikanTunaiController::class, 'reject']);
-        Route::get('penarikan-tunai/statistics', [AdminPenarikanTunaiController::class, 'statistics']);
-    });
-
-    // ========================================
-    // PRODUCT REDEMPTION ROUTES (User)
-    // ========================================
+    // Product Redemption Routes (User)
     Route::get('penukaran-produk', [PenukaranProdukController::class, 'index']);
     Route::post('penukaran-produk', [PenukaranProdukController::class, 'store']);
     Route::get('penukaran-produk/{id}', [PenukaranProdukController::class, 'show']);
@@ -119,41 +137,41 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('tukar-produk', [PenukaranProdukController::class, 'index']);
     Route::get('tukar-produk/{id}', [PenukaranProdukController::class, 'show']);
 
-    // ========================================
-    // BADGE PROGRESS TRACKING ROUTES (New)
-    // ========================================
+    // Badge Progress Tracking Routes
     Route::get('user/badges/progress', [BadgeProgressController::class, 'getUserProgress']);
     Route::get('user/badges/completed', [BadgeProgressController::class, 'getCompletedBadges']);
     Route::get('badges/leaderboard', [BadgeProgressController::class, 'getLeaderboard']);
     Route::get('badges/available', [BadgeProgressController::class, 'getAvailableBadges']);
 
-    // ========================================
-    // POINT SYSTEM ROUTES (User)
-    // ========================================
+    // Point System Routes (User)
     Route::get('poin/history', [PointController::class, 'getHistory']);
     Route::get('poin/breakdown/{userId}', [PointController::class, 'getBreakdown']);
-    Route::post('poin/bonus', [PointController::class, 'awardBonus']); // Admin only
+    Route::post('poin/bonus', [PointController::class, 'awardBonus']);
 
-    // ========================================
-    // ADMIN BADGE ANALYTICS ROUTES
-    // ========================================
+    // Notification Routes (User)
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::get('notifications/unread', [NotificationController::class, 'unread']);
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::get('notifications/{id}', [NotificationController::class, 'show']);
+    Route::patch('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::patch('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
+    Route::post('notifications/create', [NotificationController::class, 'store']);
+
+    // Admin Badge Analytics Routes
     Route::middleware('admin')->get('admin/badges/analytics', [BadgeProgressController::class, 'getAnalytics']);
 
-    // ========================================
-    // ADMIN POINT DASHBOARD ROUTES
-    // ========================================
-    Route::middleware('admin')->prefix('poin/admin')->group(function () {
+    // Admin Point Dashboard Routes
+    Route::middleware('auth:sanctum')->prefix('poin/admin')->group(function () {
         Route::get('stats', [AdminPointController::class, 'getStats']);
         Route::get('history', [AdminPointController::class, 'getHistory']);
         Route::get('redemptions', [AdminPointController::class, 'getRedemptions']);
     });
 
-    Route::middleware('admin')->get('poin/breakdown/all', [AdminPointController::class, 'getBreakdown']);
+    Route::middleware('auth:sanctum')->get('poin/breakdown/all', [AdminPointController::class, 'getBreakdown']);
 
-    // ========================================
-    // ADMIN DASHBOARD ROUTES (New)
-    // ========================================
-    Route::middleware('admin')->prefix('admin/dashboard')->group(function () {
+    // Admin Dashboard Routes
+    Route::middleware('auth:sanctum')->prefix('admin/dashboard')->group(function () {
         Route::get('overview', [DashboardAdminController::class, 'getOverview']);
         Route::get('users', [DashboardAdminController::class, 'getUsers']);
         Route::get('waste-summary', [DashboardAdminController::class, 'getWasteSummary']);
@@ -161,51 +179,241 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('waste-by-user', [DashboardAdminController::class, 'getWasteByUser']);
         Route::get('report', [DashboardAdminController::class, 'getReport']);
     });
+
+    // Comprehensive Admin Endpoints
+    Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
+        // Dashboard Overview
+        Route::get('dashboard/overview', [AdminDashboardController::class, 'overview']);
+        Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
+
+        // User Management
+        Route::get('users', [AdminUserController::class, 'index']);
+        Route::post('users', [AdminUserController::class, 'store']);
+        Route::get('users/{userId}', [AdminUserController::class, 'show']);
+        Route::put('users/{userId}', [AdminUserController::class, 'update']);
+        Route::patch('users/{userId}/status', [AdminUserController::class, 'updateStatus']);
+        Route::patch('users/{userId}/role', [AdminUserController::class, 'updateRole']);
+        Route::patch('users/{userId}/tipe', [AdminUserController::class, 'updateTipe']);
+        Route::delete('users/{userId}', [AdminUserController::class, 'destroy']);
+
+        // Waste Deposit Management (NEW - Phase 1 Critical)
+        Route::get('penyetoran-sampah', [AdminWasteController::class, 'index']);
+        Route::get('penyetoran-sampah/{id}', [AdminWasteController::class, 'show']);
+        Route::patch('penyetoran-sampah/{id}/approve', [AdminWasteController::class, 'approve']);
+        Route::patch('penyetoran-sampah/{id}/reject', [AdminWasteController::class, 'reject']);
+        Route::delete('penyetoran-sampah/{id}', [AdminWasteController::class, 'destroy']);
+        Route::get('penyetoran-sampah/stats/overview', [AdminWasteController::class, 'stats']);
+
+        // Product Exchange Management (NEW - Phase 3)
+        Route::get('penukar-produk', [AdminPenukaranProdukController::class, 'index']);
+        Route::get('penukar-produk/{exchangeId}', [AdminPenukaranProdukController::class, 'show']);
+        Route::patch('penukar-produk/{exchangeId}/approve', [AdminPenukaranProdukController::class, 'approve']);
+        Route::patch('penukar-produk/{exchangeId}/reject', [AdminPenukaranProdukController::class, 'reject']);
+        Route::delete('penukar-produk/{exchangeId}', [AdminPenukaranProdukController::class, 'destroy']);
+        Route::get('penukar-produk/stats/overview', [AdminPenukaranProdukController::class, 'stats']);
+
+        // Cash Withdrawal Management (Phase 2 - UPDATED ROUTES)
+        Route::get('penarikan-tunai', [AdminPenarikanTunaiController::class, 'index']);
+        Route::get('penarikan-tunai/{withdrawalId}', [AdminPenarikanTunaiController::class, 'show']);
+        Route::patch('penarikan-tunai/{withdrawalId}/approve', [AdminPenarikanTunaiController::class, 'approve']);
+        Route::patch('penarikan-tunai/{withdrawalId}/reject', [AdminPenarikanTunaiController::class, 'reject']);
+        Route::delete('penarikan-tunai/{withdrawalId}', [AdminPenarikanTunaiController::class, 'destroy']);
+        Route::get('penarikan-tunai/stats/overview', [AdminPenarikanTunaiController::class, 'stats']);
+
+        // Analytics
+        Route::get('analytics/waste', [AdminAnalyticsController::class, 'waste']);
+        Route::get('analytics/waste-by-user', [AdminAnalyticsController::class, 'wasteByUser']);
+        Route::get('analytics/points', [AdminAnalyticsController::class, 'points']);
+
+        // Leaderboard
+        Route::get('leaderboard', [AdminLeaderboardController::class, 'index']);
+
+        // Points Management
+        Route::post('points/award', [AdminPointsController::class, 'award']);
+        Route::get('points/history', [AdminPointsController::class, 'history']);
+
+        // Reports
+        Route::get('reports/list', [AdminReportsController::class, 'list']);
+        Route::post('reports/generate', [AdminReportsController::class, 'generate']);
+        Route::get('export', [AdminReportsController::class, 'export']);
+
+        // Activity Logs Management
+        Route::get('users/{userId}/activity-logs', [ActivityLogController::class, 'userActivityLogs']);
+        Route::get('activity-logs', [ActivityLogController::class, 'allActivityLogs']);
+        Route::get('activity-logs/{logId}', [ActivityLogController::class, 'show']);
+        Route::get('activity-logs/stats/overview', [ActivityLogController::class, 'activityStats']);
+        Route::get('activity-logs/export/csv', [ActivityLogController::class, 'exportCsv']);
+
+        // Badge Management (Admin access level)
+        Route::get('badges', [BadgeManagementController::class, 'index']);
+        Route::post('badges', [BadgeManagementController::class, 'store']);
+        Route::get('badges/{badgeId}', [BadgeManagementController::class, 'show']);
+        Route::put('badges/{badgeId}', [BadgeManagementController::class, 'update']);
+        Route::delete('badges/{badgeId}', [BadgeManagementController::class, 'destroy']);
+        Route::post('badges/{badgeId}/assign', [BadgeManagementController::class, 'assignToUser']);
+        Route::post('badges/{badgeId}/revoke', [BadgeManagementController::class, 'revokeFromUser']);
+        Route::get('badges/{badgeId}/users', [BadgeManagementController::class, 'getUsersWithBadge']);
+
+        // Content Management Routes
+
+        // Produk Management (Admin)
+        Route::get('produk', [ProdukController::class, 'index']);
+        Route::get('produk/{id}', [ProdukController::class, 'show']);
+        Route::post('produk', [ProdukController::class, 'store']);
+        Route::put('produk/{id}', [ProdukController::class, 'update']);
+        Route::delete('produk/{id}', [ProdukController::class, 'destroy']);
+
+        // Artikel Management (Admin)
+        Route::get('artikel', [ArtikelController::class, 'index']);
+        Route::get('artikel/{slug}', [ArtikelController::class, 'show']);
+        Route::post('artikel', [ArtikelController::class, 'store']);
+        Route::put('artikel/{slug}', [ArtikelController::class, 'update']);
+        Route::delete('artikel/{slug}', [ArtikelController::class, 'destroy']);
+
+        // Jadwal Penyetoran Management (Admin)
+        Route::get('jadwal-penyetoran', [JadwalPenyetoranController::class, 'index']);
+        Route::get('jadwal-penyetoran/{jadwalPenyetoran}', [JadwalPenyetoranController::class, 'show']);
+        Route::post('jadwal-penyetoran', [JadwalPenyetoranController::class, 'store']);
+        Route::put('jadwal-penyetoran/{jadwalPenyetoran}', [JadwalPenyetoranController::class, 'update']);
+        Route::delete('jadwal-penyetoran/{jadwalPenyetoran}', [JadwalPenyetoranController::class, 'destroy']);
+
+        // Jenis Sampah Management (Admin)
+        Route::get('jenis-sampah', [JenisSampahController::class, 'index']);
+        Route::get('jenis-sampah/{id}', [JenisSampahController::class, 'show']);
+        Route::post('jenis-sampah', [JenisSampahController::class, 'store']);
+        Route::put('jenis-sampah/{id}', [JenisSampahController::class, 'update']);
+        Route::delete('jenis-sampah/{id}', [JenisSampahController::class, 'destroy']);
+
+        // Kategori Sampah / Waste Categories Management (Admin)
+        Route::get('waste-categories', [KategoriSampahController::class, 'index']);
+        Route::get('kategori-sampah', [KategoriSampahController::class, 'index']);
+        Route::get('kategori-sampah/{id}', [KategoriSampahController::class, 'show']);
+        Route::post('kategori-sampah', [KategoriSampahController::class, 'store']);
+        Route::put('kategori-sampah/{id}', [KategoriSampahController::class, 'update']);
+        Route::delete('kategori-sampah/{id}', [KategoriSampahController::class, 'destroy']);
+
+        // Notification Management (Admin)
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('notifications/{notificationId}', [NotificationController::class, 'show']);
+        Route::post('notifications', [NotificationController::class, 'store']);
+        Route::delete('notifications/{notificationId}', [NotificationController::class, 'destroy']);
+        Route::get('notifications/templates', function () {
+            return response()->json([
+                'status' => 'success',
+                'data' => []
+            ]);
+        });
+    });
+
+    // Superadmin Management Routes
+    Route::middleware('role:superadmin')->prefix('superadmin')->group(function () {
+        // Admin Management
+        Route::get('admins', [AdminManagementController::class, 'index']);
+        Route::post('admins', [AdminManagementController::class, 'store']);
+        Route::get('admins/{adminId}', [AdminManagementController::class, 'show']);
+        Route::put('admins/{adminId}', [AdminManagementController::class, 'update']);
+        Route::delete('admins/{adminId}', [AdminManagementController::class, 'destroy']);
+        Route::get('admins/{adminId}/activity', [AdminManagementController::class, 'getActivity']);
+
+        // Role Management
+        Route::get('roles', [RoleManagementController::class, 'index']);
+        Route::post('roles', [RoleManagementController::class, 'store']);
+        Route::get('roles/{roleId}', [RoleManagementController::class, 'show']);
+        Route::put('roles/{roleId}', [RoleManagementController::class, 'update']);
+        Route::delete('roles/{roleId}', [RoleManagementController::class, 'destroy']);
+        Route::get('roles/{roleId}/users', [RoleManagementController::class, 'getUsers']);
+
+        // Permission Management
+        Route::get('roles/{roleId}/permissions', [PermissionAssignmentController::class, 'index']);
+        Route::post('roles/{roleId}/permissions', [PermissionAssignmentController::class, 'assign']);
+        Route::post('roles/{roleId}/permissions/bulk', [PermissionAssignmentController::class, 'bulkAssign']);
+        Route::delete('roles/{roleId}/permissions/{permissionId}', [PermissionAssignmentController::class, 'revoke']);
+        Route::get('permissions', [PermissionAssignmentController::class, 'getAllPermissions']);
+
+        // Audit Log Management
+        Route::get('audit-logs', [AuditLogController::class, 'index']);
+        Route::get('audit-logs/{logId}', [AuditLogController::class, 'show']);
+        Route::get('system-logs', [AuditLogController::class, 'systemLogs']);
+        Route::get('audit-logs/users/activity', [AuditLogController::class, 'userActivity']);
+        Route::post('audit-logs/clear-old', [AuditLogController::class, 'clearOldLogs']);
+        Route::get('audit-logs/export', [AuditLogController::class, 'export']);
+
+        // System Settings Management
+        Route::get('settings', [SystemSettingsController::class, 'index']);
+        Route::get('settings/{key}', [SystemSettingsController::class, 'show']);
+        Route::put('settings/{key}', [SystemSettingsController::class, 'update']);
+        Route::get('health', [SystemSettingsController::class, 'health']);
+        Route::get('cache-stats', [SystemSettingsController::class, 'cacheStats']);
+        Route::post('cache/clear', [SystemSettingsController::class, 'clearCache']);
+        Route::get('database-stats', [SystemSettingsController::class, 'databaseStats']);
+
+        // Database Backup Management
+        Route::post('backup', [SystemSettingsController::class, 'backup']);
+        Route::get('backups', [SystemSettingsController::class, 'listBackups']);
+        Route::delete('backups/{filename}', [SystemSettingsController::class, 'deleteBackup']);
+    });
 });
 
-// ========================================
-// USER PROFILE ROUTES (Public for now, can be protected later)
-// ========================================
-Route::get('user/{id}/poin', [PointController::class, 'getUserPoints']);
-// ========================================
-// PROTECTED USER ROUTES (Auth Required)
-// ========================================
+/*
+|--------------------------------------------------------------------------
+| User Profile Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('user/{id}/poin', [PointController::class, 'getUserPoints']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('user/{id}/redeem-history', [PointController::class, 'getRedeemHistory']);
     Route::get('user/{id}/poin/statistics', [PointController::class, 'getStatistics']);
     Route::get('users/{id}', [UserController::class, 'show']);
     Route::put('users/{id}', [UserController::class, 'update']);
     Route::post('users/{id}/update-photo', [UserController::class, 'updatePhoto']);
-    Route::get('users/{id}/tabung-sampah', [UserController::class, 'tabungSampahHistory']);
+    Route::post('users/{id}/avatar', [UserController::class, 'uploadAvatar']);
     Route::get('users/{id}/badges', [UserController::class, 'badges']);
-    // New: detailed badge list with user-specific progress and filters
     Route::get('users/{userId}/badges-list', [BadgeController::class, 'getUserBadges']);
-    Route::get('users/badges', [BadgeController::class, 'getUserBadges']); // current authenticated user
+    Route::get('users/badges', [BadgeController::class, 'getUserBadges']);
     Route::get('users/{id}/aktivitas', [UserController::class, 'aktivitas']);
+
+    // Badge Title Endpoints
+    Route::get('users/{id}/badge-title', [UserController::class, 'getBadgeTitle']);
+    Route::put('users/{id}/badge-title', [UserController::class, 'setBadgeTitle']);
+    Route::get('users/{id}/unlocked-badges', [UserController::class, 'badgesList']);
+
+    // User Feature Endpoints
+    Route::get('users/{userId}/point-history', [UserController::class, 'pointHistory']);
+    Route::get('users/{userId}/redeem-history', [UserController::class, 'redeemHistory']);
+    Route::get('users/{userId}/tabung-sampah', [UserController::class, 'wasteDepositHistory']);
+    Route::get('users/{userId}/dashboard/points', [UserController::class, 'dashboardPoints']);
 });
 
-// ========================================
-// DASHBOARD ROUTES (Public for now, can be protected later)
-// ========================================
-Route::get('dashboard/stats/{userId}', [DashboardController::class, 'getUserStats']);
-Route::get('dashboard/leaderboard', [DashboardController::class, 'getLeaderboard']);
+/*
+|--------------------------------------------------------------------------
+| Dashboard Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('dashboard/stats/{userId}', [DashboardController::class, 'getUserStats']);
+    Route::get('dashboard/leaderboard', [DashboardController::class, 'getLeaderboard']);
+});
 Route::get('dashboard/global-stats', [DashboardController::class, 'getGlobalStats']);
 
-// ========================================
-// BADGE & REWARD ROUTES
-// ========================================
+/*
+|--------------------------------------------------------------------------
+| Badge & Reward Routes
+|--------------------------------------------------------------------------
+*/
+
 Route::get('badges', [BadgeController::class, 'index']);
 Route::get('users/{userId}/badge-progress', [BadgeController::class, 'getUserProgress']);
 Route::post('users/{userId}/check-badges', [BadgeController::class, 'checkBadges']);
 
-// Badge-related actions on waste deposits
 Route::post('tabung-sampah/{id}/approve', [TabungSampahController::class, 'approve']);
 Route::post('tabung-sampah/{id}/reject', [TabungSampahController::class, 'reject']);
 
-// ========================================
-// TEST ROUTE
-// ========================================
-
+// Test Route
 Route::get('/user', function (Request $request) {
     return response()->json([
         'status' => 'success',

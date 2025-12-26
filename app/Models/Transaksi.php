@@ -9,6 +9,11 @@ class Transaksi extends Model
 {
     use HasFactory;
 
+    protected $table = 'transaksis';
+    protected $primaryKey = 'transaksi_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
+
     protected $fillable = [
         'user_id',
         'kategori_id',
@@ -19,12 +24,12 @@ class Transaksi extends Model
     // Relasi ke User
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     // Relasi ke KategoriTransaksi
     public function kategori()
     {
-        return $this->belongsTo(KategoriTransaksi::class, 'kategori_id');
+        return $this->belongsTo(KategoriTransaksi::class, 'kategori_id', 'kategori_id');
     }
 }

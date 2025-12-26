@@ -101,6 +101,87 @@ class AdminUserController extends Controller
     }
 
     /**
+     * Create new user (Admin only)
+     * POST /api/admin/users
+     */
+    public function store(Request $request)
+    {
+        try {
+            // Auto-correct common frontend typo
+            if ($request->has('tipe_nasabah') && $request->tipe_nasabah === 'konvensionalr') {
+                $request->merge(['tipe_nasabah' => 'konvensional']);
+            }
+
+            $validated = $request->validate([
+                'nama' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|string|min:6',
+                'no_hp' => 'nullable|string|max:20',
+                'alamat' => 'nullable|string',
+                'role_id' => 'nullable|integer|exists:roles,role_id',
+                'tipe_nasabah' => 'nullable|in:reguler,premium,konvensional,modern',
+                'status' => 'nullable|in:active,inactive,suspended',
+            ]);
+
+            $validated['password'] = bcrypt($validated['password']);
+            $validated['status'] = $validated['status'] ?? 'active';
+            $validated['tipe_nasabah'] = $validated['tipe_nasabah'] ?? 'konvensional';
+            $validated['total_poin'] = 0;
+            $validated['poin_tercatat'] = 0;
+            $validated['total_setor_sampah'] = 0;
+
+            // Determine level based on role
+            if (isset($validated['role_id'])) {
+                $role = \App\Models\Role::find($validated['role_id']);
+                if ($role) {
+                    if ($role->level_akses == 3) {
+                        $validated['level'] = 'superadmin';
+                    } elseif ($role->level_akses == 2) {
+                        $validated['level'] = 'admin';
+                    } else {
+                        $validated['level'] = 'bronze';
+                    }
+                } else {
+                    $validated['level'] = 'bronze';
+                }
+            } else {
+                $nasabahRole = \App\Models\Role::where('nama_role', 'Nasabah')->first();
+                $validated['role_id'] = $nasabahRole ? $nasabahRole->role_id : 1;
+                $validated['level'] = 'bronze';
+            }
+
+            $user = User::create($validated);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'User berhasil dibuat',
+                'data' => [
+                    'user_id' => $user->user_id,
+                    'nama' => $user->nama,
+                    'email' => $user->email,
+                    'status' => $user->status,
+                    'role_id' => $user->role_id,
+                    'level' => $user->level,
+                ]
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('User creation failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to create user',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get single user details
      * GET /api/admin/users/{userId}
      */
@@ -406,7 +487,6 @@ class AdminUserController extends Controller
     public function updateRole(Request $request, $userId)
     {
         try {
-            // Validate userId
             if (!is_numeric($userId) || $userId <= 0) {
                 return response()->json([
                     'status' => 'error',
@@ -449,9 +529,35 @@ class AdminUserController extends Controller
                 ], 200);
             }
 
-            $user->update(['role_id' => $validated['role_id']]);
+            $newRole = Role::find($validated['role_id']);
+            if (!$newRole) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Role not found'
+                ], 404);
+            }
 
-            // Get updated role info
+            // Determine new level based on role
+            $updateData = ['role_id' => $validated['role_id']];
+
+            switch ($newRole->level_akses) {
+                case 3:
+                    $updateData['level'] = 'superadmin';
+                    break;
+                case 2:
+                    $updateData['level'] = 'admin';
+                    break;
+                case 1:
+                default:
+                    $validNasabahLevels = ['bronze', 'silver', 'gold'];
+                    if (!in_array($user->level, $validNasabahLevels)) {
+                        $updateData['level'] = 'bronze';
+                    }
+                    break;
+            }
+
+            $user->update($updateData);
+            $user->refresh();
             $role = Role::find($validated['role_id']);
 
             return response()->json([
@@ -463,6 +569,7 @@ class AdminUserController extends Controller
                     'email' => $user->email,
                     'role_id' => (int) $user->role_id,
                     'role_name' => $role ? $role->nama_role : null,
+                    'level' => $user->level,
                     'permissions_count' => $role ? (int) $role->permissions()->count() : 0,
                     'updated_at' => $user->updated_at->toIso8601String(),
                 ]
@@ -475,6 +582,7 @@ class AdminUserController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Role update failed', ['error' => $e->getMessage(), 'userId' => $userId]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to update user role',

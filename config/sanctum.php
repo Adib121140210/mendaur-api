@@ -51,6 +51,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sanctum Model
+    |--------------------------------------------------------------------------
+    |
+    | The model that should be used by Sanctum for personal access tokens.
+    | This is set to our custom model that uses 'personal_access_token_id'
+    | as the primary key instead of 'id'.
+    |
+    */
+
+    'model' => App\Models\PersonalAccessToken::class,
+
+    /*
+    |--------------------------------------------------------------------------
     | Token Prefix
     |--------------------------------------------------------------------------
     |

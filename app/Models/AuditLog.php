@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuditLog extends Model
 {
+    protected $primaryKey = 'audit_log_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
     use HasFactory;
 
     protected $fillable = [
@@ -35,7 +38,7 @@ class AuditLog extends Model
      */
     public function admin()
     {
-        return $this->belongsTo(User::class, 'admin_id', 'id');
+        return $this->belongsTo(User::class, 'admin_id', 'user_id');
     }
 
     /**

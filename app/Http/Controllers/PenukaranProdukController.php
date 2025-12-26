@@ -103,16 +103,16 @@ class PenukaranProdukController extends Controller
             }
 
             $validated = $request->validate([
-                'produk_id' => 'required|exists:produks,id',
+                'produk_id' => 'required|exists:produks,produk_id',
                 'metode_ambil' => 'required|string',
             ]);
 
             $user = $request->user();
-            $produk = \App\Models\Produk::findOrFail($validated['produk_id']);
+            $produk = \App\Models\Produk::where('produk_id', $validated['produk_id'])->firstOrFail();
 
             // Calculate total points if not provided
             if ($totalPoin === null) {
-                $totalPoin = $produk->poin * $jumlah;
+                $totalPoin = $produk->harga_poin * $jumlah;
             }
 
             // Check if product has enough stock

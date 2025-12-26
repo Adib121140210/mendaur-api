@@ -397,9 +397,10 @@ class AdminUserController extends Controller
         try {
             $currentUser = $request->user();
 
-            // Authorization: Superadmin only
             $authError = $this->authorizeSuperAdminOnly($request);
-            if ($authError) return $authError;
+            if ($authError) {
+                return $authError;
+            }
 
             if (!is_numeric($userId) || $userId <= 0) {
                 return response()->json([
@@ -423,7 +424,6 @@ class AdminUserController extends Controller
                 ], 404);
             }
 
-            // Superadmin cannot change own role
             if ($currentUser->user_id == $userId) {
                 return response()->json([
                     'status' => 'error',
@@ -443,26 +443,53 @@ class AdminUserController extends Controller
                 ], 200);
             }
 
-            // Log the change
+            $newRole = Role::find($validated['role_id']);
+            if (!$newRole) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Role not found'
+                ], 404);
+            }
+
+            $newLevel = $this->getLevelFromRole($newRole);
+
+            $updateData = ['role_id' => $validated['role_id']];
+
+            if ($newLevel !== null) {
+                $updateData['level'] = $newLevel;
+            } elseif ($newRole->level_akses === 1) {
+                $validNasabahLevels = ['bronze', 'silver', 'gold'];
+                if (!in_array($targetUser->level, $validNasabahLevels)) {
+                    $updateData['level'] = 'bronze';
+                }
+            }
+
+            $oldRoleName = $targetUser->role ? $targetUser->role->nama_role : 'None';
+            $oldLevel = $targetUser->level;
+
             DB::table('audit_logs')->insert([
                 'admin_id' => $currentUser->user_id,
                 'user_id' => $targetUser->user_id,
                 'action' => 'update_role',
-                'old_value' => $targetUser->role_id,
-                'new_value' => $validated['role_id'],
-                'description' => "Role changed from role_id {$targetUser->role_id} to {$validated['role_id']}",
+                'old_value' => json_encode(['role_id' => $targetUser->role_id, 'level' => $oldLevel]),
+                'new_value' => json_encode(['role_id' => $validated['role_id'], 'level' => $updateData['level'] ?? $oldLevel]),
+                'description' => "Role changed from {$oldRoleName} (level: {$oldLevel}) to {$newRole->nama_role} (level: " . ($updateData['level'] ?? $oldLevel) . ")",
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            $targetUser->update(['role_id' => $validated['role_id']]);
+            $targetUser->update($updateData);
+            $targetUser->refresh();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'User role updated successfully',
                 'data' => [
                     'user_id' => (int) $targetUser->user_id,
-                    'role_id' => $validated['role_id'],
+                    'role_id' => $targetUser->role_id,
+                    'role_name' => $newRole->nama_role,
+                    'level' => $targetUser->level,
+                    'level_updated' => isset($updateData['level']),
                 ]
             ], 200);
 
@@ -473,6 +500,7 @@ class AdminUserController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Failed to update user role', ['user_id' => $userId, 'error' => $e->getMessage()]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to update user role',
@@ -681,5 +709,32 @@ class AdminUserController extends Controller
         ];
 
         return $levels[$roleName] ?? 1;
+    }
+
+    /**
+     * Get level string value based on role's level_akses
+     * Maps level_akses to appropriate level string
+     *
+     * @param Role $role
+     * @return string
+     */
+    private function getLevelFromRole($role)
+    {
+        if (!$role) {
+            return 'bronze'; // Default for users without role
+        }
+
+        // Map level_akses to level string
+        switch ($role->level_akses) {
+            case 3:
+                return 'superadmin';
+            case 2:
+                return 'admin';
+            case 1:
+            default:
+                // For nasabah, keep their existing level (bronze, silver, gold)
+                // Only return 'bronze' if they don't have a level yet
+                return null; // Will be handled by caller
+        }
     }
 }

@@ -44,12 +44,11 @@ class NotifikasiSeeder extends Seeder
                 $tanggalNotifikasi = Carbon::now()->subDays(rand(1, 30));
 
                 Notifikasi::create([
-                    'user_id' => $user->id,
+                    'user_id' => $user->user_id,
                     'tipe' => $tipe,
                     'judul' => $this->getJudulByTipe($tipe),
                     'pesan' => $this->getPesanByTipe($tipe),
                     'is_read' => $isRead,
-                    'tanggal_dibaca' => $isRead ? $tanggalNotifikasi->clone()->addHours(rand(1, 24)) : null,
                     'created_at' => $tanggalNotifikasi,
                     'updated_at' => $tanggalNotifikasi,
                 ]);

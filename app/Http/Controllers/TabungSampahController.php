@@ -35,8 +35,8 @@ class TabungSampahController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'jadwal_id' => 'required|exists:jadwal_penyetorans,id',
+            'user_id' => 'required|exists:users,user_id',
+            'jadwal_penyetoran_id' => 'required|exists:jadwal_penyetorans,jadwal_penyetoran_id',
             'nama_lengkap' => 'required|string',
             'no_hp' => 'required|string',
             'titik_lokasi' => 'required|string',
@@ -165,7 +165,7 @@ class TabungSampahController extends Controller
             $user->increment('total_setor_sampah');
 
             \Log::info("User poin updated via PointService", [
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'total_poin_awarded' => $pointCalculation['total'],
                 'breakdown' => $pointCalculation['breakdown'],
                 'new_total_poin' => $user->fresh()->total_poin,
@@ -173,14 +173,14 @@ class TabungSampahController extends Controller
 
             // Log the waste deposit activity
             LogAktivitas::log(
-                $user->id,
+                $user->user_id,
                 LogAktivitas::TYPE_SETOR_SAMPAH,
                 "Menyetor {$validated['berat_kg']}kg sampah {$tabungSampah->jenis_sampah}",
                 $pointCalculation['total']
             );
 
             // ✨ Check for new badges and award rewards automatically
-            $newBadges = $this->badgeService->checkAndAwardBadges($user->id);
+            $newBadges = $this->badgeService->checkAndAwardBadges($user->user_id);
 
             return response()->json([
                 'status' => 'success',

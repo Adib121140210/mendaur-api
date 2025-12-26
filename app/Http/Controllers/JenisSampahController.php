@@ -10,12 +10,20 @@ use App\Http\Resources\JenisSampahResource;
 class JenisSampahController extends Controller
 {
     /**
-     * Create new jenis sampah (Admin only)
+     * Create new jenis sampah (Admin/Superadmin only)
      */
     public function store(Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
-            'kategori_sampah_id' => 'required|exists:kategori_sampah,id',
+            'kategori_sampah_id' => 'required|exists:kategori_sampah,kategori_sampah_id',
             'nama_jenis' => 'required|string|max:100',
             'harga_per_kg' => 'required|numeric|min:0',
             'satuan' => 'sometimes|string|max:20',
@@ -49,16 +57,24 @@ class JenisSampahController extends Controller
     }
 
     /**
-     * Update jenis sampah (Admin only)
+     * Update jenis sampah (Admin/Superadmin only)
      */
     public function update(Request $request, $id)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
-            'kategori_sampah_id' => 'sometimes|exists:kategori_sampah,id',
+            'kategori_sampah_id' => 'sometimes|exists:kategori_sampah,kategori_sampah_id',
             'nama_jenis' => 'sometimes|required|string|max:100',
             'harga_per_kg' => 'sometimes|numeric|min:0',
             'satuan' => 'sometimes|string|max:20',
-            'kode' => 'nullable|string|max:20|unique:jenis_sampah,kode,' . $id,
+            'kode' => 'nullable|string|max:20|unique:jenis_sampah,kode,' . $id . ',jenis_sampah_id',
             'is_active' => 'sometimes|boolean',
         ]);
 
@@ -90,10 +106,18 @@ class JenisSampahController extends Controller
     }
 
     /**
-     * Delete jenis sampah (Admin only)
+     * Delete jenis sampah (Admin/Superadmin only)
      */
-    public function destroy($id)
+    public function destroy($id, Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         try {
             $jenis = JenisSampah::findOrFail($id);
             $jenis->delete();

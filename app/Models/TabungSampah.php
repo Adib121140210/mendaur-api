@@ -10,10 +10,13 @@ class TabungSampah extends Model
     use HasFactory;
 
     protected $table = 'tabung_sampah';
+    protected $primaryKey = 'tabung_sampah_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'user_id',
-        'jadwal_id',
+        'jadwal_penyetoran_id',
         'nama_lengkap',
         'no_hp',
         'titik_lokasi',
@@ -34,12 +37,12 @@ class TabungSampah extends Model
     // Relasi ke User
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     // Relasi ke JadwalPenyetoran
     public function jadwal()
     {
-        return $this->belongsTo(JadwalPenyetoran::class, 'jadwal_id');
+        return $this->belongsTo(JadwalPenyetoran::class, 'jadwal_penyetoran_id');
     }
 }

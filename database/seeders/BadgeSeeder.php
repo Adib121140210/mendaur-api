@@ -10,10 +10,12 @@ class BadgeSeeder extends Seeder
     public function run(): void
     {
         // Clear existing data to avoid duplicates (disable FK checks first)
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        DB::table('user_badges')->truncate();
-        DB::table('badges')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        \DB::statement('SET SESSION FOREIGN_KEY_CHECKS = 0');
+        \DB::statement('DELETE FROM user_badges');
+        \DB::statement('ALTER TABLE user_badges AUTO_INCREMENT = 1');
+        \DB::statement('DELETE FROM badges');
+        \DB::statement('ALTER TABLE badges AUTO_INCREMENT = 1');
+        \DB::statement('SET SESSION FOREIGN_KEY_CHECKS = 1');
 
         DB::table('badges')->insert([
             [

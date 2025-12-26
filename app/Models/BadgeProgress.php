@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BadgeProgress extends Model
 {
     protected $table = 'badge_progress';
+    protected $primaryKey = 'badge_progress_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'user_id',
@@ -29,12 +32,12 @@ class BadgeProgress extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     public function badge(): BelongsTo
     {
-        return $this->belongsTo(Badge::class);
+        return $this->belongsTo(Badge::class, 'badge_id', 'badge_id');
     }
 
     /**

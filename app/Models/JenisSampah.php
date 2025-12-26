@@ -10,6 +10,9 @@ class JenisSampah extends Model
     use HasFactory;
 
     protected $table = 'jenis_sampah';
+    protected $primaryKey = 'jenis_sampah_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'kategori_sampah_id',

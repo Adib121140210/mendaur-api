@@ -15,7 +15,7 @@ class NotificationController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             // Get notifications with pagination
             $perPage = $request->query('per_page', 20);
             $notifications = Notifikasi::where('user_id', $user->user_id)
@@ -70,7 +70,7 @@ class NotificationController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $notifications = Notifikasi::where('user_id', $user->user_id)
                 ->where('is_read', false)
                 ->orderBy('created_at', 'desc')
@@ -98,7 +98,7 @@ class NotificationController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $notification = Notifikasi::where('notifikasi_id', $notificationId)
                 ->where('user_id', $user->user_id)
                 ->firstOrFail();
@@ -129,7 +129,7 @@ class NotificationController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $notification = Notifikasi::where('notifikasi_id', $notificationId)
                 ->where('user_id', $user->user_id)
                 ->firstOrFail();
@@ -163,7 +163,7 @@ class NotificationController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             Notifikasi::where('user_id', $user->user_id)
                 ->where('is_read', false)
                 ->update(['is_read' => true]);
@@ -189,7 +189,7 @@ class NotificationController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $notification = Notifikasi::where('notifikasi_id', $notificationId)
                 ->where('user_id', $user->user_id)
                 ->firstOrFail();

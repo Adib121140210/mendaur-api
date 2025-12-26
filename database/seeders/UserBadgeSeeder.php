@@ -28,18 +28,18 @@ class UserBadgeSeeder extends Seeder
         foreach ($users as $user) {
             // Setiap user bisa memiliki 1-3 badges
             $randomBadges = $badges->random(rand(1, 3));
-            
+
             foreach ($randomBadges as $badge) {
                 // Cek apakah user sudah memiliki badge ini
-                $exists = UserBadge::where('user_id', $user->id)
+                $exists = UserBadge::where('user_id', $user->user_id)
                     ->where('badge_id', $badge->badge_id)
                     ->exists();
 
                 if (!$exists) {
                     UserBadge::create([
-                        'user_id' => $user->id,
+                        'user_id' => $user->user_id,
                         'badge_id' => $badge->badge_id,
-                        'diperoleh_pada' => Carbon::now()->subDays(rand(1, 60)),
+                        'tanggal_dapat' => Carbon::now()->subDays(rand(1, 60)),
                     ]);
                 }
             }

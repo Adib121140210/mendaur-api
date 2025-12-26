@@ -7,6 +7,7 @@ use App\Models\PenukaranProduk;
 use App\Models\User;
 use App\Models\Produk;
 use App\Models\AuditLog;
+use App\Models\PoinTransaksi;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -272,7 +273,6 @@ class AdminPenukaranProdukController extends Controller
      */
     public function reject(Request $request, $exchangeId)
     {
-        // RBAC: Admin+ only
         if (!$request->user()->isAdminUser()) {
             return response()->json([
                 'status' => 'error',
@@ -280,10 +280,32 @@ class AdminPenukaranProdukController extends Controller
             ], 403);
         }
 
-        $validated = $request->validate([
-            'alasan_penolakan' => 'required|string|max:500',
-            'catatan_admin' => 'nullable|string|max:500',
-        ]);
+        $alasanPenolakan = $request->input('alasan_penolakan')
+                        ?? $request->input('alasan')
+                        ?? $request->input('catatan_admin')
+                        ?? $request->input('reason')
+                        ?? $request->input('rejection_reason')
+                        ?? null;
+
+        if (!$alasanPenolakan || !is_string($alasanPenolakan)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Alasan penolakan wajib diisi',
+                'errors' => [
+                    'alasan_penolakan' => ['The alasan penolakan field is required.']
+                ]
+            ], 422);
+        }
+
+        if (strlen($alasanPenolakan) > 500) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Alasan penolakan maksimal 500 karakter',
+                'errors' => [
+                    'alasan_penolakan' => ['The alasan penolakan must not exceed 500 characters.']
+                ]
+            ], 422);
+        }
 
         $exchange = PenukaranProduk::where('penukaran_produk_id', $exchangeId)->firstOrFail();
 
@@ -297,19 +319,25 @@ class AdminPenukaranProdukController extends Controller
 
         DB::beginTransaction();
         try {
-            // Store old data for audit
             $oldData = $exchange->toArray();
 
-            // Update exchange status
-            $exchange->update([
-                'status' => 'rejected',
-                'catatan' => $validated['alasan_penolakan'],
+            $user = $exchange->user;
+            $user->increment('total_poin', $exchange->poin_digunakan);
+
+            PoinTransaksi::create([
+                'user_id' => $exchange->user_id,
+                'poin_didapat' => $exchange->poin_digunakan,
+                'sumber' => 'pengembalian_penukaran',
+                'keterangan' => 'Pengembalian poin dari penukaran produk yang ditolak',
+                'referensi_id' => $exchangeId,
+                'referensi_tipe' => 'PenukaranProduk'
             ]);
 
-            // Refund points to user (points were not deducted yet since it's pending)
-            // No need to refund since pending exchanges don't deduct points
+            $exchange->update([
+                'status' => 'cancelled',
+                'catatan' => $alasanPenolakan,
+            ]);
 
-            // Create audit log
             AuditLog::create([
                 'admin_id' => $request->user()->user_id,
                 'action_type' => 'reject',
@@ -320,9 +348,9 @@ class AdminPenukaranProdukController extends Controller
                 ],
                 'new_values' => [
                     'status' => 'rejected',
-                    'reason' => $validated['alasan_penolakan'],
+                    'reason' => $alasanPenolakan,
                 ],
-                'reason' => $validated['catatan_admin'] ?? 'Rejection',
+                'reason' => $alasanPenolakan,
             ]);
 
             DB::commit();
@@ -333,12 +361,13 @@ class AdminPenukaranProdukController extends Controller
                 'data' => [
                     'id' => $exchange->penukaran_produk_id,
                     'status' => $exchange->status,
-                    'alasan_penolakan' => $validated['alasan_penolakan'],
+                    'alasan_penolakan' => $alasanPenolakan,
                 ]
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Failed to reject exchange', ['exchange_id' => $exchangeId, 'error' => $e->getMessage()]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to reject exchange',

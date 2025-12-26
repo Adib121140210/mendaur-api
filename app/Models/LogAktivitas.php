@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class LogAktivitas extends Model
 {
     protected $table = 'log_aktivitas';
+    protected $primaryKey = 'log_user_activity_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     public $timestamps = false; // Using custom 'created_at' field
 

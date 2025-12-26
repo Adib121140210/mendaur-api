@@ -10,6 +10,9 @@ class PenukaranProduk extends Model
     use HasFactory;
 
     protected $table = 'penukaran_produk';
+    protected $primaryKey = 'penukaran_produk_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'user_id',
@@ -38,12 +41,12 @@ class PenukaranProduk extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     public function produk()
     {
-        return $this->belongsTo(Produk::class);
+        return $this->belongsTo(Produk::class, 'produk_id', 'produk_id');
     }
 
     /**

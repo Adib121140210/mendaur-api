@@ -14,7 +14,8 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             // RBAC
-            $table->foreignId('role_id')->nullable()->after('id')->constrained('roles')->onDelete('set null');
+            $table->unsignedBigInteger('role_id')->nullable()->after('user_id');
+            $table->foreign('role_id')->references('role_id')->on('roles')->onDelete('set null');
 
             // Dual-nasabah system
             $table->enum('tipe_nasabah', ['konvensional', 'modern'])->default('konvensional')->after('level')

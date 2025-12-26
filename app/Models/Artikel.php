@@ -10,6 +10,9 @@ class Artikel extends Model
     use HasFactory;
 
     protected $table = 'artikels';
+    protected $primaryKey = 'artikel_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'judul',

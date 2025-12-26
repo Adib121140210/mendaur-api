@@ -18,10 +18,11 @@ class AuthUserResource extends JsonResource
         $roleData = null;
         $permissions = [];
 
-        if ($this->role) {
-            $permissions = $this->role->permissions
-                ? $this->role->permissions->pluck('permission')->toArray()
-                : [];
+        if ($this->role && $this->role !== null) {
+            $rolePermissions = $this->role->permissions;
+            if ($rolePermissions) {
+                $permissions = $rolePermissions->pluck('permission_code')->toArray();
+            }
             $roleData = [
                 'role_id' => $this->role->role_id,
                 'nama_role' => $this->role->nama_role,

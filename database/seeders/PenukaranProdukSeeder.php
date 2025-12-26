@@ -24,15 +24,15 @@ class PenukaranProdukSeeder extends Seeder
             return;
         }
 
-        $statuses = ['pending', 'approved', 'rejected', 'completed'];
+        $statuses = ['pending', 'approved', 'cancelled'];
         $metodes = ['pickup', 'delivery', 'email'];
 
         foreach ($users as $user) {
             for ($i = 0; $i < 3; $i++) {
                 $selectedProduk = $produk->random();
-                
+
                 PenukaranProduk::create([
-                    'user_id' => $user->id,
+                    'user_id' => $user->user_id,
                     'produk_id' => $selectedProduk->produk_id,
                     'nama_produk' => $selectedProduk->nama,
                     'poin_digunakan' => $selectedProduk->poin_ditukar ?? 500 + ($i * 100),
@@ -49,7 +49,7 @@ class PenukaranProdukSeeder extends Seeder
         $this->command->info('✅ PenukaranProduk seeder berhasil dijalankan');
     }
 
-    private function getRandomCatatan(): string
+    private function getRandomCatatan(): ?string
     {
         $catatan = [
             'Produk sudah diterima dengan baik',
@@ -59,7 +59,7 @@ class PenukaranProdukSeeder extends Seeder
             'Diambil sendiri di kantor',
             null,
         ];
-        
+
         return $catatan[array_rand($catatan)];
     }
 }

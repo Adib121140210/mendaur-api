@@ -10,6 +10,9 @@ class UserBadge extends Model
     use HasFactory;
 
     protected $table = 'user_badges';
+    protected $primaryKey = 'user_badge_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'user_id',
@@ -30,7 +33,7 @@ class UserBadge extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     /**
@@ -38,7 +41,15 @@ class UserBadge extends Model
      */
     public function badge()
     {
-        return $this->belongsTo(Badge::class);
+        return $this->belongsTo(Badge::class, 'badge_id', 'badge_id');
+    }
+
+    /**
+     * Backward compatibility: access 'id' as alias for 'user_badge_id'
+     */
+    public function getIdAttribute()
+    {
+        return $this->user_badge_id;
     }
 
     /**

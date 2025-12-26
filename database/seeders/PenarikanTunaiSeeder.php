@@ -16,32 +16,40 @@ class PenarikanTunaiSeeder extends Seeder
     {
         // Ambil beberapa users
         $users = User::where('role_id', 1)->take(10)->get();
+        $admins = User::where('role_id', '>=', 2)->get();
 
         if ($users->isEmpty()) {
             $this->command->info('⚠️  Users tidak ditemukan. Silakan jalankan seeder yang sesuai terlebih dahulu.');
             return;
         }
 
-        $statuses = ['pending', 'approved', 'rejected', 'completed'];
+        $statuses = ['pending', 'approved', 'rejected'];
+        $banks = ['BCA', 'Mandiri', 'BRI', 'BTN', 'Permata', 'CIMB Niaga'];
         $jumlahOptions = [50000, 100000, 150000, 200000, 250000, 500000];
+        $poinOptions = [500, 1000, 1500, 2000, 2500, 5000];
 
         foreach ($users as $user) {
             for ($i = 0; $i < rand(2, 4); $i++) {
                 $status = $statuses[array_rand($statuses)];
                 $tanggalRequest = Carbon::now()->subDays(rand(1, 30));
-                $tanggalAproval = in_array($status, ['approved', 'completed', 'rejected']) 
+                $processedAt = ($status !== 'pending')
                     ? $tanggalRequest->clone()->addDays(rand(1, 5))
+                    : null;
+                $processedBy = ($status !== 'pending' && $admins->isNotEmpty())
+                    ? $admins->random()->user_id
                     : null;
 
                 PenarikanTunai::create([
-                    'user_id' => $user->id,
-                    'jumlah' => $jumlahOptions[array_rand($jumlahOptions)],
+                    'user_id' => $user->user_id,
+                    'jumlah_poin' => $poinOptions[array_rand($poinOptions)],
+                    'jumlah_rupiah' => $jumlahOptions[array_rand($jumlahOptions)],
+                    'nomor_rekening' => rand(1000000000, 9999999999),
+                    'nama_bank' => $banks[array_rand($banks)],
+                    'nama_penerima' => $user->nama ?? 'User ' . $user->user_id,
                     'status' => $status,
-                    'alasan_penolakan' => $status === 'rejected' ? $this->getRandomAlasan() : null,
-                    'catatan_admin' => rand(0, 1) ? $this->getRandomCatatan() : null,
-                    'tanggal_request' => $tanggalRequest,
-                    'tanggal_approval' => $tanggalAproval,
-                    'tanggal_selesai' => $status === 'completed' ? $tanggalAproval->clone()->addDays(rand(1, 3)) : null,
+                    'catatan_admin' => $status === 'rejected' ? $this->getRandomCatatan() : null,
+                    'processed_by' => $processedBy,
+                    'processed_at' => $processedAt,
                 ]);
             }
         }
@@ -49,29 +57,16 @@ class PenarikanTunaiSeeder extends Seeder
         $this->command->info('✅ PenarikanTunai seeder berhasil dijalankan');
     }
 
-    private function getRandomAlasan(): string
-    {
-        $alasan = [
-            'Saldo tidak mencukupi',
-            'Verifikasi akun belum lengkap',
-            'Jumlah penarikan terlalu kecil',
-            'Frekuensi penarikan terlalu sering',
-            'Rekening bank tidak valid',
-        ];
-        
-        return $alasan[array_rand($alasan)];
-    }
-
     private function getRandomCatatan(): string
     {
         $catatan = [
-            'Tunai siap diambil di kantor cabang',
-            'Transfer sudah dilakukan',
-            'Menunggu konfirmasi bank',
-            'Silakan hubungi admin untuk detail lebih lanjut',
-            null,
+            'Rekening tidak valid',
+            'Data pemilik rekening tidak sesuai',
+            'Saldo poin tidak cukup untuk diproses',
+            'Terjadi masalah dengan bank',
+            'Nomor rekening tidak aktif',
         ];
-        
+
         return $catatan[array_rand($catatan)];
     }
 }

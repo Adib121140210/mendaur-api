@@ -2,56 +2,61 @@
 
 namespace Database\Seeders;
 
+use App\Models\TabungSampah;
+use App\Models\User;
+use App\Models\JadwalPenyetoran;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class TabungSampahSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('tabung_sampah')->insert([
-            [
-                'user_id' => 1,
-                'jadwal_id' => 1,
-                'nama_lengkap' => 'Adib Surya',
-                'no_hp' => '081234567890',
-                'titik_lokasi' => 'Jl. Gatot Subroto No. 123, Metro Barat',
-                'jenis_sampah' => 'Plastik',
-                'berat_kg' => 5.5,
-                'foto_sampah' => 'uploads/sampah_1.jpg',
-                'status' => 'approved',
-                'poin_didapat' => 16,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => 2,
-                'jadwal_id' => 2,
-                'nama_lengkap' => 'Siti Aminah',
-                'no_hp' => '082345678901',
-                'titik_lokasi' => 'Jl. Diponegoro No. 456, Metro Timur',
-                'jenis_sampah' => 'Kertas',
-                'berat_kg' => 8.0,
-                'foto_sampah' => 'uploads/sampah_2.jpg',
-                'status' => 'approved',
-                'poin_didapat' => 16,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => 3,
-                'jadwal_id' => 1,
-                'nama_lengkap' => 'Budi Santoso',
-                'no_hp' => '083456789012',
-                'titik_lokasi' => 'Jl. Sudirman No. 789, Metro Selatan',
-                'jenis_sampah' => 'Logam',
-                'berat_kg' => 3.2,
-                'foto_sampah' => 'uploads/sampah_3.jpg',
-                'status' => 'pending',
-                'poin_didapat' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        // Ambil users dan jadwal penyetoran
+        $users = User::where('role_id', 1)->take(15)->get();
+        $jadwals = JadwalPenyetoran::all();
+
+        if ($users->isEmpty() || $jadwals->isEmpty()) {
+            $this->command->info('⚠️  Users atau JadwalPenyetoran tidak ditemukan. Silakan jalankan seeder yang sesuai terlebih dahulu.');
+            return;
+        }
+
+        // Daftar jenis sampah yang realistis
+        $jenisSampahList = ['Plastik', 'Kertas', 'Logam', 'Kaca', 'Organik', 'Elektronik'];
+        $statuses = ['pending', 'approved', 'rejected'];
+        $lokasi = ['Rumah', 'Kantor', 'Toko', 'Sekolah', 'Mal', 'Apartemen'];
+        $totalDeposits = 0;
+
+        foreach ($users as $user) {
+            // Setiap user membuat 5-10 deposit
+            for ($i = 0; $i < rand(5, 10); $i++) {
+                $jadwal = $jadwals->random();
+                $beratKg = rand(5, 50) + (rand(0, 99) / 100);
+                $status = $statuses[array_rand($statuses)];
+                $poinDidapat = 0;
+
+                if ($status === 'approved') {
+                    // Hitung poin: berat * harga / 100
+                    // Asumsi: Plastik = 5000/kg, Kertas = 2000/kg, Logam = 10000/kg
+                    $poinDidapat = (int) floor($beratKg * rand(2000, 10000) / 100);
+                    $totalDeposits++;
+                }
+
+                TabungSampah::create([
+                    'user_id' => $user->user_id,
+                    'jadwal_penyetoran_id' => $jadwal->jadwal_penyetoran_id,
+                    'nama_lengkap' => $user->nama ?? 'User ' . $user->user_id,
+                    'no_hp' => $user->no_hp ?? '08' . rand(1000000000, 9999999999),
+                    'titik_lokasi' => $lokasi[array_rand($lokasi)] . ' - ' . 'Jalan ' . rand(1, 100),
+                    'jenis_sampah' => $jenisSampahList[array_rand($jenisSampahList)],
+                    'berat_kg' => $beratKg,
+                    'foto_sampah' => null,
+                    'status' => $status,
+                    'poin_didapat' => $poinDidapat,
+                ]);
+            }
+        }
+
+        $this->command->info("✅ TabungSampah seeder berhasil dijalankan (Total: " . ($totalDeposits * 2) . " deposits created, Approved: {$totalDeposits})");
     }
 }

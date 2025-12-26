@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
 {
+    protected $primaryKey = 'role_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
     use HasFactory;
 
     protected $fillable = [
@@ -25,12 +28,12 @@ class Role extends Model
      */
     public function users()
     {
-        return $this->hasMany(User::class, 'role_id', 'id');
+        return $this->hasMany(User::class, 'role_id', 'role_id');
     }
 
     public function permissions()
     {
-        return $this->hasMany(RolePermission::class, 'role_id', 'id');
+        return $this->hasMany(RolePermission::class, 'role_id', 'role_id');
     }
 
     /**

@@ -18,7 +18,37 @@
 /public/storage
 /storage/*.key
 /storage/pail
+
+# Documentation and test files (excluded from git)
+*.md
+*.txt
+test_*.php
+*_test.php
+test-*.php
+check_*.php
+check-*.php
+award_*.php
+sync_*.php
+DROP_*.sql
+VERIFY_*.sql
+verify_*.sql
+*.drawio.html
+test-form.html
+test-cors.html
+test-login.html
+test-login.html
 /vendor
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Documentation (cleanup)
+*.md
+DOCUMENTATION/
+*.txt
+*.ps1
+*.sql
+
+# Problematic migrations to delete
+database/migrations/2025_12_10_000001_rename_users_id_to_user_id.php
+

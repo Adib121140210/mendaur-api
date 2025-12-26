@@ -24,13 +24,20 @@ class DatabaseSeeder extends Seeder
             JenisSampahSeeder::class,
             KategoriTransaksiSeeder::class,
             JadwalPenyetoranSeeder::class,
-            TabungSampahSeeder::class,
             ProdukSeeder::class,
             BadgeSeeder::class,
-            ArtikelSeeder::class, // Add artikel seed data
+            ArtikelSeeder::class,
             LogAktivitasSeeder::class,
-            BadgeProgressSeeder::class, // Initialize badge progress for all users
-            // TransaksiSeeder::class, // Comment out if not updated yet
+            BadgeProgressSeeder::class,
+
+            // ✨ NEW: Feature Seeders
+            TabungSampahSeeder::class,      // Waste deposit data
+            PenukaranProdukSeeder::class,   // Product exchange data
+            PenarikanTunaiSeeder::class,    // Cash withdrawal data
+            UserBadgeSeeder::class,         // User badge assignments
+            NotifikasiSeeder::class,        // Notification data
+            PoinTransaksiSeeder::class,     // Point transaction data
+            PoinCorrectionSeeder::class,    // Point correction data
         ]);
     }
 }

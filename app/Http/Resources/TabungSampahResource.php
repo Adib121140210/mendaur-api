@@ -17,7 +17,7 @@ class TabungSampahResource extends JsonResource
         return [
             'tabung_sampah_id' => $this->tabung_sampah_id,
             'user_id' => $this->user_id,
-            'jadwal_id' => $this->jadwal_id,
+            'jadwal_penyetoran_id' => $this->jadwal_penyetoran_id,
             'jenis_sampah' => $this->jenis_sampah,
             'berat_kg' => $this->berat_kg,
             'status' => $this->status,

@@ -38,7 +38,7 @@ class ArtikelController extends Controller
             ], 404);
         }
 
-        // Increment views
+        // Increment Article views
         $artikel->increment('views');
 
         return response()->json([
@@ -48,10 +48,18 @@ class ArtikelController extends Controller
     }
 
     /**
-     * Create new article (admin only)
+     * Create new article (Admin/Superadmin only)
      */
     public function store(Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'judul' => 'required|string',
             'konten' => 'required|string',
@@ -82,10 +90,18 @@ class ArtikelController extends Controller
     }
 
     /**
-     * Update article (admin only)
+     * Update article (Admin/Superadmin only)
      */
     public function update(Request $request, $slug)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $artikel = Artikel::where('slug', $slug)->first();
 
         if (!$artikel) {
@@ -127,10 +143,18 @@ class ArtikelController extends Controller
     }
 
     /**
-     * Delete article (admin only)
+     * Delete article (Admin/Superadmin only)
      */
-    public function destroy($slug)
+    public function destroy($slug, Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $artikel = Artikel::where('slug', $slug)->first();
 
         if (!$artikel) {

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('badges', function (Blueprint $table) {
-            $table->id();
+            $table->id('badge_id');
             $table->string('nama');
             $table->text('deskripsi')->nullable();
             $table->string('icon')->nullable();
@@ -24,13 +24,17 @@ return new class extends Migration
         });
 
         Schema::create('user_badges', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('badge_id')->constrained('badges')->onDelete('cascade');
+            $table->id('user_badge_id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('badge_id');
             $table->timestamp('tanggal_dapat')->useCurrent();
             $table->boolean('reward_claimed')->default(true); // ✨ Track if reward was given
             $table->timestamps();
             $table->unique(['user_id', 'badge_id'], 'unique_user_badge');
+            
+            // Foreign keys with explicit column references
+            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
+            $table->foreign('badge_id')->references('badge_id')->on('badges')->onDelete('cascade');
         });
     }
 

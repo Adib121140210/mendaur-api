@@ -11,7 +11,9 @@ class JadwalPenyetoranController extends Controller
     // List semua jadwal
     public function index()
     {
-        $data = JadwalPenyetoran::orderBy('tanggal', 'asc')->get();
+        $data = JadwalPenyetoran::orderByRaw("FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu')")
+            ->orderBy('waktu_mulai', 'asc')
+            ->get();
 
         return response()->json([
             'status' => 'success',
@@ -19,16 +21,35 @@ class JadwalPenyetoranController extends Controller
         ]);
     }
 
-    // Tambah jadwal baru
+    // Tambah jadwal baru (Admin/Superadmin only)
     public function store(Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $validated = $request->validate([
-            'tanggal' => 'required|date',
-            'waktu_mulai' => 'required|date_format:H:i',
-            'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
+            'hari' => 'required|in:Senin,Selasa,Rabu,Kamis,Jumat,Sabtu,Minggu',
+            'waktu_mulai' => 'required',
+            'waktu_selesai' => 'required',
             'lokasi' => 'required|string',
-            'keterangan' => 'nullable|string',
+            'status' => 'nullable|in:Buka,Tutup',
         ]);
+
+        // Normalize time format (handle both H:i and H:i:s)
+        if (isset($validated['waktu_mulai'])) {
+            $validated['waktu_mulai'] = date('H:i:s', strtotime($validated['waktu_mulai']));
+        }
+        if (isset($validated['waktu_selesai'])) {
+            $validated['waktu_selesai'] = date('H:i:s', strtotime($validated['waktu_selesai']));
+        }
+
+        // Default status to 'Buka' if not provided
+        $validated['status'] = $validated['status'] ?? 'Buka';
 
         $jadwal = JadwalPenyetoran::create($validated);
 
@@ -38,11 +59,12 @@ class JadwalPenyetoranController extends Controller
         ], 201);
     }
 
-    // Jadwal penyetoran aktif
-        public function aktif()
+    // Jadwal penyetoran aktif (status = Buka)
+    public function aktif()
     {
-        $data = JadwalPenyetoran::whereDate('tanggal', '>=', now()->toDateString())
-            ->orderBy('tanggal', 'asc')
+        $data = JadwalPenyetoran::where('status', 'Buka')
+            ->orderByRaw("FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu')")
+            ->orderBy('waktu_mulai', 'asc')
             ->get();
 
         return response()->json([
@@ -52,11 +74,11 @@ class JadwalPenyetoranController extends Controller
     }
 
     // Daftar setoran pada jadwal tertentu
-        public function setoran(JadwalPenyetoran $jadwalPenyetoran)
+    public function setoran(JadwalPenyetoran $jadwalPenyetoran)
     {
         return response()->json([
             'status' => 'success',
-            'data' => $jadwalPenyetoran->setoran()->with('user')->get()
+            'data' => $jadwalPenyetoran->tabungSampah()->with('user')->get()
         ]);
     }
 
@@ -69,16 +91,32 @@ class JadwalPenyetoranController extends Controller
         ]);
     }
 
-    // Update jadwal
+    // Update jadwal (Admin/Superadmin only)
     public function update(Request $request, JadwalPenyetoran $jadwalPenyetoran)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $validated = $request->validate([
-            'tanggal' => 'nullable|date',
-            'waktu_mulai' => 'nullable|date_format:H:i',
-            'waktu_selesai' => 'nullable|date_format:H:i|after:waktu_mulai',
+            'hari' => 'nullable|in:Senin,Selasa,Rabu,Kamis,Jumat,Sabtu,Minggu',
+            'waktu_mulai' => 'nullable',
+            'waktu_selesai' => 'nullable',
             'lokasi' => 'nullable|string',
-            'keterangan' => 'nullable|string',
+            'status' => 'nullable|in:Buka,Tutup',
         ]);
+
+        // Normalize time format (handle both H:i and H:i:s)
+        if (isset($validated['waktu_mulai'])) {
+            $validated['waktu_mulai'] = date('H:i:s', strtotime($validated['waktu_mulai']));
+        }
+        if (isset($validated['waktu_selesai'])) {
+            $validated['waktu_selesai'] = date('H:i:s', strtotime($validated['waktu_selesai']));
+        }
 
         $jadwalPenyetoran->update($validated);
 
@@ -88,9 +126,17 @@ class JadwalPenyetoranController extends Controller
         ]);
     }
 
-    // Hapus jadwal
-    public function destroy(JadwalPenyetoran $jadwalPenyetoran)
+    // Hapus jadwal (Admin/Superadmin only)
+    public function destroy(JadwalPenyetoran $jadwalPenyetoran, Request $request)
     {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized - Admin role required',
+            ], 403);
+        }
+
         $jadwalPenyetoran->delete();
 
         return response()->json([

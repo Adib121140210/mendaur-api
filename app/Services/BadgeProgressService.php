@@ -28,8 +28,8 @@ class BadgeProgressService
     {
         $progress = BadgeProgress::firstOrCreate(
             [
-                'user_id' => $user->id,
-                'badge_id' => $badge->id,
+                'user_id' => $user->user_id,
+                'badge_id' => $badge->badge_id,
             ],
             [
                 'current_value' => 0,
@@ -52,7 +52,7 @@ class BadgeProgressService
         $this->syncUserBadgeProgress($user);
 
         $query = BadgeProgress::with('badge')
-            ->where('user_id', $user->id);
+            ->where('user_id', $user->user_id);
 
         // Apply filter
         switch ($filter) {
@@ -73,8 +73,8 @@ class BadgeProgressService
             ->get();
 
         // Get counts
-        $allCount = BadgeProgress::where('user_id', $user->id)->count();
-        $unlockedCount = BadgeProgress::where('user_id', $user->id)
+        $allCount = BadgeProgress::where('user_id', $user->user_id)->count();
+        $unlockedCount = BadgeProgress::where('user_id', $user->user_id)
             ->where('is_unlocked', true)
             ->count();
         $lockedCount = $allCount - $unlockedCount;

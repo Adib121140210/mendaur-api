@@ -76,32 +76,25 @@ class BadgeManagementController extends Controller
      */
     public function store(Request $request)
     {
-        // Verify superadmin role
-        if (!$request->user()?->isSuperAdmin()) {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized - Superadmin role required',
+                'message' => 'Unauthorized - Admin role required',
             ], 403);
         }
 
         $validated = $request->validate([
             'nama' => 'required|string|max:100|unique:badges,nama',
             'deskripsi' => 'nullable|string',
-            'icon' => 'nullable|image|mimes:jpeg,jpg,png|max:1024',
-            'tipe' => 'required|in:automatic,manual',
-            'kondisi_pencapaian' => 'nullable|string',
-            'poin_reward' => 'nullable|integer|min:0',
+            'icon' => 'nullable|string|max:50', // emoji string, not image
+            'tipe' => 'required|in:setor,poin,ranking',
+            'syarat_setor' => 'nullable|integer|min:0',
+            'syarat_poin' => 'nullable|integer|min:0',
+            'reward_poin' => 'nullable|integer|min:0',
         ]);
 
         try {
-            // Handle icon upload
-            if ($request->hasFile('icon')) {
-                $file = $request->file('icon');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('uploads/badges', $filename, 'public');
-                $validated['icon'] = $path;
-            }
-
             $badge = Badge::create($validated);
 
             return response()->json([
@@ -123,11 +116,11 @@ class BadgeManagementController extends Controller
      */
     public function update($badgeId, Request $request)
     {
-        // Verify superadmin role
-        if (!$request->user()?->isSuperAdmin()) {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized - Superadmin role required',
+                'message' => 'Unauthorized - Admin role required',
             ], 403);
         }
 
@@ -135,21 +128,14 @@ class BadgeManagementController extends Controller
             $badge = Badge::findOrFail($badgeId);
 
             $validated = $request->validate([
-                'nama' => ['nullable', 'string', 'max:100', Rule::unique('badges')->ignore($badgeId)],
+                'nama' => ['nullable', 'string', 'max:100', Rule::unique('badges')->ignore($badgeId, 'badge_id')],
                 'deskripsi' => 'nullable|string',
-                'icon' => 'nullable|image|mimes:jpeg,jpg,png|max:1024',
-                'tipe' => 'nullable|in:automatic,manual',
-                'kondisi_pencapaian' => 'nullable|string',
-                'poin_reward' => 'nullable|integer|min:0',
+                'icon' => 'nullable|string|max:50', // emoji string, not image
+                'tipe' => 'nullable|in:setor,poin,ranking',
+                'syarat_setor' => 'nullable|integer|min:0',
+                'syarat_poin' => 'nullable|integer|min:0',
+                'reward_poin' => 'nullable|integer|min:0',
             ]);
-
-            // Handle icon upload
-            if ($request->hasFile('icon')) {
-                $file = $request->file('icon');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('uploads/badges', $filename, 'public');
-                $validated['icon'] = $path;
-            }
 
             $badge->update($validated);
 
@@ -172,11 +158,11 @@ class BadgeManagementController extends Controller
      */
     public function destroy($badgeId, Request $request)
     {
-        // Verify superadmin role
-        if (!$request->user()?->isSuperAdmin()) {
+        // Verify admin or superadmin role
+        if (!$request->user()?->isAdminUser()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized - Superadmin role required',
+                'message' => 'Unauthorized - Admin role required',
             ], 403);
         }
 

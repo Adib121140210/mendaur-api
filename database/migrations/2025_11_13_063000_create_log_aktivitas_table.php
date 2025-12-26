@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('log_aktivitas', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->id('log_user_activity_id');
+            $table->unsignedBigInteger('user_id');
             $table->string('tipe_aktivitas', 50);
             $table->text('deskripsi')->nullable();
             $table->integer('poin_perubahan')->default(0);
@@ -22,6 +22,9 @@ return new class extends Migration
 
             // Index for performance
             $table->index(['user_id', 'tanggal'], 'idx_user_tanggal');
+            
+            // Foreign key with explicit column reference
+            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
         });
     }
 

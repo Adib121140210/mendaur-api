@@ -11,13 +11,11 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Disable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-        DB::table('users')->truncate();
-
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // Disable foreign key checks to allow truncation of users table
+        \DB::statement('SET SESSION FOREIGN_KEY_CHECKS = 0');
+        \DB::statement('DELETE FROM users');
+        \DB::statement('ALTER TABLE users AUTO_INCREMENT = 1');
+        \DB::statement('SET SESSION FOREIGN_KEY_CHECKS = 1');
 
         // Get role IDs
         $adminRole = Role::where('nama_role', 'admin')->first();
@@ -36,8 +34,9 @@ class UserSeeder extends Seeder
                 'total_poin' => 0,
                 'poin_tercatat' => 0,
                 'total_setor_sampah' => 0,
-                'level' => 'Admin',
-                'role_id' => $adminRole ? $adminRole->id : null,
+                'level' => 'admin',  // Lowercase untuk konsistensi
+                'role_id' => $adminRole ? $adminRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'konvensional',
                 'nama_bank' => null,
                 'nomor_rekening' => null,
@@ -55,8 +54,9 @@ class UserSeeder extends Seeder
                 'total_poin' => 0,
                 'poin_tercatat' => 0,
                 'total_setor_sampah' => 0,
-                'level' => 'Superadmin',
-                'role_id' => $superadminRole ? $superadminRole->id : null,
+                'level' => 'superadmin',  // Lowercase untuk konsistensi
+                'role_id' => $superadminRole ? $superadminRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'konvensional',
                 'nama_bank' => null,
                 'nomor_rekening' => null,
@@ -77,12 +77,13 @@ class UserSeeder extends Seeder
                 'total_poin' => 150,
                 'poin_tercatat' => 150,
                 'total_setor_sampah' => 5,
-                'level' => 'Bronze',
-                'role_id' => $nasabahRole ? $nasabahRole->id : null,
+                'level' => 'bronze',  // Lowercase untuk konsistensi
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'konvensional',
-                'nama_bank' => null,  // Konvensional: NO bank info
-                'nomor_rekening' => null,  // Konvensional: NO account number
-                'atas_nama_rekening' => null,  // Konvensional: NO account name
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -96,12 +97,13 @@ class UserSeeder extends Seeder
                 'total_poin' => 2000,
                 'poin_tercatat' => 2000,
                 'total_setor_sampah' => 12,
-                'level' => 'Silver',
-                'role_id' => $nasabahRole ? $nasabahRole->id : null,
+                'level' => 'silver',  // Lowercase untuk konsistensi
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'konvensional',
-                'nama_bank' => null,  // Konvensional: NO bank info
-                'nomor_rekening' => null,  // Konvensional: NO account number
-                'atas_nama_rekening' => null,  // Konvensional: NO account name
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -115,12 +117,13 @@ class UserSeeder extends Seeder
                 'total_poin' => 50,
                 'poin_tercatat' => 50,
                 'total_setor_sampah' => 2,
-                'level' => 'Pemula',
-                'role_id' => $nasabahRole ? $nasabahRole->id : null,
+                'level' => 'bronze',  // Lowercase untuk konsistensi (Pemula -> bronze)
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'konvensional',
-                'nama_bank' => null,  // Konvensional: NO bank info
-                'nomor_rekening' => null,  // Konvensional: NO account number
-                'atas_nama_rekening' => null,  // Konvensional: NO account name
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -134,15 +137,16 @@ class UserSeeder extends Seeder
                 'no_hp' => '085555666777',
                 'alamat' => 'Jl. Ahmad Yani No. 321, Metro Utara',
                 'foto_profil' => null,
-                'total_poin' => 0,  // Modern: blocked from direct poin usage
-                'poin_tercatat' => 500,  // Modern: records poin for audit only
+                'total_poin' => 0,
+                'poin_tercatat' => 500,
                 'total_setor_sampah' => 8,
-                'level' => 'Gold',
-                'role_id' => $nasabahRole ? $nasabahRole->id : null,
+                'level' => 'gold',  // Lowercase untuk konsistensi
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'modern',
-                'nama_bank' => 'BNI',  // Modern: HAS bank info
-                'nomor_rekening' => '1234567890',  // Modern: HAS account number
-                'atas_nama_rekening' => 'Reno Wijaya',  // Modern: HAS account name
+                'nama_bank' => 'BNI',
+                'nomor_rekening' => '1234567890',
+                'atas_nama_rekening' => 'Reno Wijaya',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -153,15 +157,16 @@ class UserSeeder extends Seeder
                 'no_hp' => '087777888999',
                 'alamat' => 'Jl. Merdeka No. 654, Metro Pusat',
                 'foto_profil' => null,
-                'total_poin' => 0,  // Modern: blocked from direct poin usage
-                'poin_tercatat' => 1200,  // Modern: records poin for audit only
+                'total_poin' => 0,
+                'poin_tercatat' => 1200,
                 'total_setor_sampah' => 15,
-                'level' => 'Platinum',
-                'role_id' => $nasabahRole ? $nasabahRole->id : null,
+                'level' => 'gold',  // Lowercase (Platinum -> gold untuk konsistensi)
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'modern',
-                'nama_bank' => 'MANDIRI',  // Modern: HAS bank info
-                'nomor_rekening' => '9876543210',  // Modern: HAS account number
-                'atas_nama_rekening' => 'Rina Kusuma',  // Modern: HAS account name
+                'nama_bank' => 'MANDIRI',
+                'nomor_rekening' => '9876543210',
+                'atas_nama_rekening' => 'Rina Kusuma',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -177,12 +182,116 @@ class UserSeeder extends Seeder
                 'total_poin' => 1000,
                 'poin_tercatat' => 1000,
                 'total_setor_sampah' => 2000,
-                'level' => 'Bronze',
-                'role_id' => $nasabahRole ? $nasabahRole->id : null,
+                'level' => 'bronze',  // Lowercase untuk konsistensi
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
                 'tipe_nasabah' => 'konvensional',
-                'nama_bank' => null,  // Konvensional: NO bank info
-                'nomor_rekening' => null,  // Konvensional: NO account number
-                'atas_nama_rekening' => null,  // Konvensional: NO account name
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            // ========== TEST USERS FOR CRUD OPERATIONS ==========
+            // These users are created to test CRUD operations (status updates, role changes, etc.)
+            [
+                'nama' => 'Inactive User Test',
+                'email' => 'inactive@test.com',
+                'password' => Hash::make('password'),
+                'no_hp' => '081111111111',
+                'alamat' => 'Jl. Test No. 111, Metro Test',
+                'foto_profil' => null,
+                'total_poin' => 500,
+                'poin_tercatat' => 500,
+                'total_setor_sampah' => 5,
+                'level' => 'bronze',  // Lowercase untuk konsistensi
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'inactive',
+                'tipe_nasabah' => 'konvensional',
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nama' => 'Suspended User Test',
+                'email' => 'suspended@test.com',
+                'password' => Hash::make('password'),
+                'no_hp' => '082222222222',
+                'alamat' => 'Jl. Test No. 222, Metro Test',
+                'foto_profil' => null,
+                'total_poin' => 300,
+                'poin_tercatat' => 300,
+                'total_setor_sampah' => 3,
+                'level' => 'bronze',  // Lowercase untuk konsistensi (Pemula -> bronze)
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'suspended',
+                'tipe_nasabah' => 'konvensional',
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nama' => 'Premium User Test',
+                'email' => 'premium@test.com',
+                'password' => Hash::make('password'),
+                'no_hp' => '083333333333',
+                'alamat' => 'Jl. Test No. 333, Metro Test',
+                'foto_profil' => null,
+                'total_poin' => 5000,
+                'poin_tercatat' => 5000,
+                'total_setor_sampah' => 50,
+                'level' => 'gold',  // Lowercase untuk konsistensi (Gold -> gold)
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
+                'tipe_nasabah' => 'konvensional',
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nama' => 'Corporate User Test',
+                'email' => 'corporate@test.com',
+                'password' => Hash::make('password'),
+                'no_hp' => '084444444444',
+                'alamat' => 'Jl. Test No. 444, Metro Test',
+                'foto_profil' => null,
+                'total_poin' => 10000,
+                'poin_tercatat' => 10000,
+                'total_setor_sampah' => 100,
+                'level' => 'gold',  // Lowercase untuk konsistensi (Platinum -> gold)
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
+                'tipe_nasabah' => 'modern',
+                'nama_bank' => 'BCA',
+                'nomor_rekening' => '1111111111',
+                'atas_nama_rekening' => 'Corporate User',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nama' => 'Staff User Test',
+                'email' => 'staff@test.com',
+                'password' => Hash::make('password'),
+                'no_hp' => '085555555555',
+                'alamat' => 'Jl. Test No. 555, Metro Test',
+                'foto_profil' => null,
+                'total_poin' => 0,
+                'poin_tercatat' => 0,
+                'total_setor_sampah' => 0,
+                'level' => 'bronze',  // Lowercase untuk konsistensi (Staff -> bronze)
+                'role_id' => $nasabahRole ? $nasabahRole->role_id : null,
+                'status' => 'active',
+                'tipe_nasabah' => 'konvensional',
+                'nama_bank' => null,
+                'nomor_rekening' => null,
+                'atas_nama_rekening' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],

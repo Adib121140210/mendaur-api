@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PenarikanTunai;
 use App\Models\Notifikasi;
 use App\Models\AuditLog;
+use App\Models\PoinTransaksi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +28,7 @@ class AdminPenarikanTunaiController extends Controller
         $query = PenarikanTunai::with('user');
 
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->has('status') && $request->status) {
             $query->where('status', $request->status);
         }
 
@@ -51,7 +52,7 @@ class AdminPenarikanTunaiController extends Controller
         // Transform data for response
         $withdrawals->getCollection()->transform(function ($withdrawal) {
             return [
-                'id' => $withdrawal->penarikan_tunai_id,  // FIX: Use correct primary key
+                'id' => $withdrawal->penarikan_tunai_id,
                 'user' => [
                     'id' => $withdrawal->user?->user_id ?? null,
                     'name' => $withdrawal->user?->nama ?? null,
@@ -70,9 +71,20 @@ class AdminPenarikanTunaiController extends Controller
             ];
         });
 
+        // Add summary statistics
+        $summary = [
+            'total' => PenarikanTunai::count(),
+            'pending' => PenarikanTunai::where('status', 'pending')->count(),
+            'approved' => PenarikanTunai::where('status', 'approved')->count(),
+            'rejected' => PenarikanTunai::where('status', 'rejected')->count(),
+            'total_poin' => (int) (PenarikanTunai::sum('jumlah_poin') ?? 0),
+            'total_nominal' => (int) (PenarikanTunai::sum('jumlah_rupiah') ?? 0),
+        ];
+
         return response()->json([
             'success' => true,
-            'data' => $withdrawals
+            'data' => $withdrawals,
+            'summary' => $summary
         ]);
     }
 
@@ -135,12 +147,11 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     /**
-     * Approve withdrawal (PATCH /api/admin/penarikan-tunai/{id}/approve)
+     * Approve withdrawal (PATCH /api/admin/penarikan-tunai/{withdrawalId}/approve)
      */
-    public function approve(Request $request, $id)
+    public function approve(Request $request, $withdrawalId)
     {
         try {
-            // RBAC: Admin+ only - Check if user is admin or superadmin
             if (!$request->user()->isAdminUser()) {
                 return response()->json([
                     'success' => false,
@@ -148,16 +159,21 @@ class AdminPenarikanTunaiController extends Controller
                 ], 403);
             }
 
-            $validated = $request->validate([
-                'catatan_admin' => 'nullable|string|max:500'
-            ]);
+            $catatanAdmin = $request->input('catatan_admin');
+            if (!is_string($catatanAdmin)) {
+                $catatanAdmin = null;
+            }
+            if ($catatanAdmin !== null && strlen($catatanAdmin) > 500) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Catatan admin maksimal 500 karakter'
+                ], 422);
+            }
 
-            // FIX: Use correct primary key
-            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $id)
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $withdrawalId)
                 ->with('user')
                 ->firstOrFail();
 
-            // Check if already processed
             if ($withdrawal->status !== 'pending') {
                 return response()->json([
                     'success' => false,
@@ -167,25 +183,25 @@ class AdminPenarikanTunaiController extends Controller
 
             DB::beginTransaction();
             try {
-                // Update withdrawal status
                 $withdrawal->update([
                     'status' => 'approved',
-                    'catatan_admin' => $validated['catatan_admin'] ?? null,
+                    'catatan_admin' => $catatanAdmin,
                     'processed_by' => auth()->user()->user_id,
                     'processed_at' => now()
                 ]);
 
-                // Log the action
                 AuditLog::create([
-                    'user_id' => auth()->user()->user_id,
+                    'admin_id' => auth()->user()->user_id,
                     'action_type' => 'approve_withdrawal',
-                    'resource_id' => $id,
+                    'resource_type' => 'PenarikanTunai',
+                    'resource_id' => $withdrawalId,
                     'old_values' => ['status' => 'pending'],
                     'new_values' => ['status' => 'approved'],
-                    'ip_address' => request()->ip()
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'status' => 'success'
                 ]);
 
-                // Send notification to user
                 Notifikasi::create([
                     'user_id' => $withdrawal->user_id,
                     'judul' => 'Penarikan Tunai Disetujui',
@@ -200,7 +216,7 @@ class AdminPenarikanTunaiController extends Controller
                     'success' => true,
                     'message' => 'Penarikan tunai berhasil disetujui',
                     'data' => [
-                        'id' => $withdrawal->penarikan_tunai_id,  // FIX: Use correct primary key
+                        'id' => $withdrawal->penarikan_tunai_id,
                         'status' => $withdrawal->status,
                         'catatan_admin' => $withdrawal->catatan_admin,
                         'processed_at' => $withdrawal->processed_at
@@ -218,6 +234,7 @@ class AdminPenarikanTunaiController extends Controller
                 'message' => 'Withdrawal record not found'
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Withdrawal approval failed', ['id' => $withdrawalId, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan',
@@ -227,9 +244,9 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     /**
-     * Reject withdrawal and refund points (PATCH /api/admin/penarikan-tunai/{id}/reject)
+     * Reject withdrawal and refund points (PATCH /api/admin/penarikan-tunai/{withdrawalId}/reject)
      */
-    public function reject(Request $request, $id)
+    public function reject(Request $request, $withdrawalId)
     {
         try {
             // RBAC: Admin+ only - Check if user is admin or superadmin
@@ -245,7 +262,7 @@ class AdminPenarikanTunaiController extends Controller
             ]);
 
             // FIX: Use correct primary key
-            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $id)
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $withdrawalId)
                 ->with('user')
                 ->firstOrFail();
 
@@ -262,6 +279,16 @@ class AdminPenarikanTunaiController extends Controller
                 // CRITICAL: Refund points to user
                 $withdrawal->user->increment('total_poin', $withdrawal->jumlah_poin);
 
+                // CRITICAL: Record point refund transaction
+                PoinTransaksi::create([
+                    'user_id' => $withdrawal->user_id,
+                    'poin_didapat' => $withdrawal->jumlah_poin,
+                    'sumber' => 'pengembalian_penarikan',
+                    'keterangan' => 'Pengembalian poin dari penarikan tunai yang ditolak',
+                    'referensi_id' => $withdrawalId,
+                    'referensi_tipe' => 'PenarikanTunai'
+                ]);
+
                 // Update withdrawal status
                 $withdrawal->update([
                     'status' => 'rejected',
@@ -272,12 +299,16 @@ class AdminPenarikanTunaiController extends Controller
 
                 // Log the action
                 AuditLog::create([
-                    'user_id' => auth()->user()->user_id,
+                    'admin_id' => auth()->user()->user_id,
                     'action_type' => 'reject_withdrawal',
-                    'resource_id' => $id,
+                    'resource_type' => 'PenarikanTunai',
+                    'resource_id' => $withdrawalId,
                     'old_values' => ['status' => 'pending'],
                     'new_values' => ['status' => 'rejected'],
-                    'ip_address' => request()->ip()
+                    'reason' => $validated['catatan_admin'],
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'status' => 'success'
                 ]);
 
                 // Send notification to user
@@ -323,9 +354,9 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     /**
-     * Delete/Cancel withdrawal (DELETE /api/admin/penarikan-tunai/{id})
+     * Delete/Cancel withdrawal (DELETE /api/admin/penarikan-tunai/{withdrawalId})
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, $withdrawalId)
     {
         try {
             // RBAC: Admin+ only - Check if user is admin or superadmin
@@ -337,7 +368,7 @@ class AdminPenarikanTunaiController extends Controller
             }
 
             // FIX: Use correct primary key
-            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $id)->firstOrFail();
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $withdrawalId)->firstOrFail();
 
             // Can only delete pending withdrawals
             if ($withdrawal->status !== 'pending') {
@@ -353,12 +384,15 @@ class AdminPenarikanTunaiController extends Controller
 
                 // Log the action
                 AuditLog::create([
-                    'user_id' => auth()->user()->user_id,
+                    'admin_id' => auth()->user()->user_id,
                     'action_type' => 'delete_withdrawal',
-                    'resource_id' => $id,
+                    'resource_type' => 'PenarikanTunai',
+                    'resource_id' => $withdrawalId,
                     'old_values' => $withdrawal->toArray(),
                     'new_values' => [],
-                    'ip_address' => request()->ip()
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'status' => 'success'
                 ]);
 
                 DB::commit();
@@ -387,7 +421,7 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     /**
-     * Get withdrawal statistics (GET /api/admin/penarikan-tunai/stats)
+     * Get withdrawal statistics (GET /api/admin/penarikan-tunai/stats/overview)
      */
     public function stats(Request $request)
     {
@@ -401,28 +435,41 @@ class AdminPenarikanTunaiController extends Controller
             }
 
             $stats = [
+                'total' => PenarikanTunai::count(),
                 'pending' => [
                     'count' => PenarikanTunai::where('status', 'pending')->count(),
-                    'total_points' => PenarikanTunai::where('status', 'pending')->sum('jumlah_poin'),
-                    'total_rupiah' => PenarikanTunai::where('status', 'pending')->sum('jumlah_rupiah')
+                    'total_points' => (int) (PenarikanTunai::where('status', 'pending')->sum('jumlah_poin') ?? 0),
+                    'total_rupiah' => (int) (PenarikanTunai::where('status', 'pending')->sum('jumlah_rupiah') ?? 0)
                 ],
+                'approved' => [
+                    'count' => PenarikanTunai::where('status', 'approved')->count(),
+                    'total_points' => (int) (PenarikanTunai::where('status', 'approved')->sum('jumlah_poin') ?? 0),
+                    'total_rupiah' => (int) (PenarikanTunai::where('status', 'approved')->sum('jumlah_rupiah') ?? 0)
+                ],
+                'rejected' => [
+                    'count' => PenarikanTunai::where('status', 'rejected')->count(),
+                    'total_points' => (int) (PenarikanTunai::where('status', 'rejected')->sum('jumlah_poin') ?? 0),
+                    'total_rupiah' => (int) (PenarikanTunai::where('status', 'rejected')->sum('jumlah_rupiah') ?? 0)
+                ],
+                'total_poin' => (int) (PenarikanTunai::sum('jumlah_poin') ?? 0),
+                'total_nominal' => (int) (PenarikanTunai::sum('jumlah_rupiah') ?? 0),
                 'approved_today' => [
                     'count' => PenarikanTunai::where('status', 'approved')
                         ->whereDate('processed_at', today())
                         ->count(),
-                    'total_rupiah' => PenarikanTunai::where('status', 'approved')
+                    'total_rupiah' => (int) (PenarikanTunai::where('status', 'approved')
                         ->whereDate('processed_at', today())
-                        ->sum('jumlah_rupiah')
+                        ->sum('jumlah_rupiah') ?? 0)
                 ],
                 'approved_this_month' => [
                     'count' => PenarikanTunai::where('status', 'approved')
                         ->whereMonth('processed_at', now()->month)
                         ->whereYear('processed_at', now()->year)
                         ->count(),
-                    'total_rupiah' => PenarikanTunai::where('status', 'approved')
+                    'total_rupiah' => (int) (PenarikanTunai::where('status', 'approved')
                         ->whereMonth('processed_at', now()->month)
                         ->whereYear('processed_at', now()->year)
-                        ->sum('jumlah_rupiah')
+                        ->sum('jumlah_rupiah') ?? 0)
                 ]
             ];
 

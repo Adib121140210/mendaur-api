@@ -24,7 +24,7 @@ class TransaksiController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'user_id' => 'required|exists:users,user_id',
             'kategori_id' => 'required|exists:kategori_transaksi,id',
             'jumlah' => 'required|numeric',
             'deskripsi' => 'nullable|string',
@@ -51,7 +51,7 @@ class TransaksiController extends Controller
     public function update(Request $request, Transaksi $transaksi)
     {
         $validated = $request->validate([
-            'user_id' => 'nullable|exists:users,id',
+            'user_id' => 'nullable|exists:users,user_id',
             'kategori_id' => 'nullable|exists:kategori_transaksi,id',
             'jumlah' => 'nullable|numeric',
             'deskripsi' => 'nullable|string',

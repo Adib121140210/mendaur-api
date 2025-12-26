@@ -19,7 +19,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+        'https://mendaur.up.railway.app',  // Production
+        'http://localhost:5173',            // Local Vite dev
+        'http://127.0.0.1:5173',            // Local IP Vite dev
+        'http://localhost:3000',            // Alternative local
+        'http://127.0.0.1:3000',            // Alternative local IP
+    ],
 
     'allowed_origins_patterns' => [],
 
@@ -29,6 +35,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];

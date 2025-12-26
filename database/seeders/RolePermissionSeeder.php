@@ -64,7 +64,7 @@ class RolePermissionSeeder extends Seeder
 
         foreach ($nasabahPermissions as $code => $description) {
             RolePermission::create([
-                'role_id' => $nasabahRole->id,
+                'role_id' => $nasabahRole->role_id,
                 'permission_code' => $code,
                 'deskripsi' => $description,
             ]);
@@ -74,7 +74,7 @@ class RolePermissionSeeder extends Seeder
         // First, admin inherits all nasabah permissions (17)
         foreach ($nasabahPermissions as $code => $description) {
             RolePermission::create([
-                'role_id' => $adminRole->id,
+                'role_id' => $adminRole->role_id,
                 'permission_code' => $code,
                 'deskripsi' => $description,
             ]);
@@ -124,7 +124,7 @@ class RolePermissionSeeder extends Seeder
 
         foreach ($adminPermissions as $code => $description) {
             RolePermission::create([
-                'role_id' => $adminRole->id,
+                'role_id' => $adminRole->role_id,
                 'permission_code' => $code,
                 'deskripsi' => $description,
             ]);
@@ -134,7 +134,7 @@ class RolePermissionSeeder extends Seeder
         // First, superadmin inherits all nasabah permissions (17)
         foreach ($nasabahPermissions as $code => $description) {
             RolePermission::create([
-                'role_id' => $superadminRole->id,
+                'role_id' => $superadminRole->role_id,
                 'permission_code' => $code,
                 'deskripsi' => $description,
             ]);
@@ -143,7 +143,7 @@ class RolePermissionSeeder extends Seeder
         // Then all admin permissions (23)
         foreach ($adminPermissions as $code => $description) {
             RolePermission::create([
-                'role_id' => $superadminRole->id,
+                'role_id' => $superadminRole->role_id,
                 'permission_code' => $code,
                 'deskripsi' => $description,
             ]);
@@ -186,7 +186,7 @@ class RolePermissionSeeder extends Seeder
 
         foreach ($superadminPermissions as $code => $description) {
             RolePermission::create([
-                'role_id' => $superadminRole->id,
+                'role_id' => $superadminRole->role_id,
                 'permission_code' => $code,
                 'deskripsi' => $description,
             ]);

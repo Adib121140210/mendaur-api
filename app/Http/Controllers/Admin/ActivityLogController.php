@@ -74,7 +74,7 @@ class ActivityLogController extends Controller
 
         try {
             $perPage = $request->query('per_page', 50);
-            
+
             // Get filter parameters
             $userId = $request->query('user_id');
             $activityType = $request->query('activity_type');
@@ -245,7 +245,7 @@ class ActivityLogController extends Controller
 
             // Create CSV content
             $csv = "Log ID,User ID,User Name,Activity Type,Description,Points Changed,Date\n";
-            
+
             foreach ($logs as $log) {
                 $csv .= "{$log->log_user_activity_id},{$log->user_id},{$log->user->nama},";
                 $csv .= "{$log->tipe_aktivitas},\"{$log->deskripsi}\",{$log->poin_perubahan},";
