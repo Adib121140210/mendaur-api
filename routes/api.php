@@ -89,6 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('profile', [AuthController::class, 'profile']);
     Route::put('profile', [AuthController::class, 'updateProfile']);
+    Route::post('profile/update', [AuthController::class, 'updateProfile']); // Alternative POST endpoint
 
     // Tabung Sampah
     Route::apiResource('tabung-sampah', TabungSampahController::class);
@@ -124,14 +125,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('penarikan-tunai', [PenarikanTunaiController::class, 'index']);
     Route::post('penarikan-tunai', [PenarikanTunaiController::class, 'store']);
     Route::get('penarikan-tunai/summary', [PenarikanTunaiController::class, 'summary']);
+    Route::get('penarikan-tunai/user/{userId}', [PenarikanTunaiController::class, 'byUser']);
     Route::get('penarikan-tunai/{id}', [PenarikanTunaiController::class, 'show']);
 
     // Product Redemption Routes (User)
     Route::get('penukaran-produk', [PenukaranProdukController::class, 'index']);
     Route::post('penukaran-produk', [PenukaranProdukController::class, 'store']);
+    Route::get('penukaran-produk/user/{userId}', [PenukaranProdukController::class, 'byUser']);
     Route::get('penukaran-produk/{id}', [PenukaranProdukController::class, 'show']);
     Route::put('penukaran-produk/{id}/cancel', [PenukaranProdukController::class, 'cancel']);
     Route::delete('penukaran-produk/{id}', [PenukaranProdukController::class, 'destroy']);
+
+    // Setor Sampah user endpoint alias
+    Route::get('setor-sampah/user/{userId}', [TabungSampahController::class, 'byUser']);
 
     // Legacy endpoint (backward compatibility)
     Route::get('tukar-produk', [PenukaranProdukController::class, 'index']);
@@ -227,6 +233,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Leaderboard
         Route::get('leaderboard', [AdminLeaderboardController::class, 'index']);
+        Route::get('leaderboard/settings', [AdminLeaderboardController::class, 'getSettings']);
+        Route::put('leaderboard/settings', [AdminLeaderboardController::class, 'updateSettings']);
+        Route::post('leaderboard/reset', [AdminLeaderboardController::class, 'resetLeaderboard']);
+        Route::get('leaderboard/history', [AdminLeaderboardController::class, 'getHistory']);
 
         // Points Management
         Route::post('points/award', [AdminPointsController::class, 'award']);

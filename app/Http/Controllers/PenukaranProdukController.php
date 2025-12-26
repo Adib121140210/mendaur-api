@@ -382,4 +382,49 @@ class PenukaranProdukController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get product redemptions by user ID
+     * GET /api/penukaran-produk/user/{userId}
+     */
+    public function byUser(Request $request, $userId)
+    {
+        try {
+            // IDOR Protection: User can only view their own data
+            if ((int)$request->user()->user_id !== (int)$userId) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            $query = PenukaranProduk::with('produk')
+                ->where('user_id', $userId)
+                ->orderBy('created_at', 'desc');
+
+            // Filter by status if provided
+            if ($request->has('status') && $request->status !== 'semua') {
+                $query->where('status', $request->status);
+            }
+
+            $redemptions = $query->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => PenukaranProdukResource::collection($redemptions)
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Error fetching user product redemptions:', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan saat mengambil data penukaran produk'
+            ], 500);
+        }
+    }
 }

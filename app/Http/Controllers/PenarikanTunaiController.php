@@ -185,4 +185,34 @@ class PenarikanTunaiController extends Controller
             'data' => $summary
         ]);
     }
+
+    /**
+     * Get withdrawals by user ID
+     * GET /api/penarikan-tunai/user/{userId}
+     */
+    public function byUser(Request $request, $userId)
+    {
+        // IDOR Protection: User can only view their own data
+        if ((int)$request->user()->user_id !== (int)$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $query = PenarikanTunai::where('user_id', $userId);
+
+        // Filter by status if provided
+        if ($request->has('status') && $request->status !== 'semua') {
+            $query->where('status', $request->status);
+        }
+
+        $withdrawals = $query->orderBy('created_at', 'desc')->get();
+
+        return response()->json([
+            'success' => true,
+            'status' => 'success',
+            'data' => PenarikanTunaiResource::collection($withdrawals)
+        ]);
+    }
 }

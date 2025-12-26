@@ -41,7 +41,7 @@ class UserController extends Controller
 
         $request->validate([
             'nama' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $id,
+            'email' => 'sometimes|email|unique:users,email,' . $id . ',user_id',
             'no_hp' => 'sometimes|string|max:20',
             'alamat' => 'sometimes|string',
         ]);

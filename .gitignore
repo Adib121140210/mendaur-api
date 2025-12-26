@@ -49,6 +49,11 @@ DOCUMENTATION/
 *.ps1
 *.sql
 
+# Frontend API files (not part of backend)
+API_LIST_FOR_FRONTEND.js
+adminApi.js
+adminApi_FIXED.js
+
 # Problematic migrations to delete
 database/migrations/2025_12_10_000001_rename_users_id_to_user_id.php
 

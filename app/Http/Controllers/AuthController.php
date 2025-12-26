@@ -136,4 +136,46 @@ class AuthController extends Controller
             'data' => (new AuthUserResource($user))->resolve(request()),
         ], 200);
     }
+
+    /**
+     * Update authenticated user profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'nama' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|unique:users,email,' . $user->user_id . ',user_id',
+            'no_hp' => 'sometimes|string|max:20',
+            'alamat' => 'sometimes|string|nullable',
+            'nama_bank' => 'sometimes|string|nullable',
+            'nomor_rekening' => 'sometimes|string|nullable',
+            'atas_nama_rekening' => 'sometimes|string|nullable',
+        ]);
+
+        // Update only fillable fields that were provided
+        $updateData = $request->only([
+            'nama', 
+            'email', 
+            'no_hp', 
+            'alamat',
+            'nama_bank',
+            'nomor_rekening',
+            'atas_nama_rekening',
+        ]);
+
+        // Remove null values to avoid overwriting existing data
+        $updateData = array_filter($updateData, fn($value) => $value !== null);
+
+        $user->update($updateData);
+        $user->refresh();
+        $user->load('role.permissions');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Profile updated successfully',
+            'data' => (new AuthUserResource($user))->resolve(request()),
+        ], 200);
+    }
 }
