@@ -44,6 +44,15 @@ use App\Http\Controllers\Admin\ActivityLogController;
 |--------------------------------------------------------------------------
 */
 
+// Health Check - No auth, no database required
+Route::get('health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'service' => 'mendaur-api'
+    ]);
+});
+
 // Auth Routes
 Route::post('login', [AuthController::class, 'login'])->name('login');
 Route::post('register', [AuthController::class, 'register']);
@@ -433,5 +442,15 @@ Route::get('/user', function (Request $request) {
         'message' => 'API is working!',
         'data' => 'good'
     ], 200);
+});
+
+// Health check endpoint for Railway
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now(),
+        'service' => 'Mendaur Bank Sampah API',
+        'version' => '1.0.0'
+    ]);
 });
 
