@@ -70,6 +70,12 @@
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
+        "railway-deploy": [
+            "@php artisan migrate --force",
+            "@php artisan db:seed --force",
+            "@php artisan config:cache",
+            "@php artisan route:cache"
+        ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ]
