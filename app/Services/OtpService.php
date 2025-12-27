@@ -1,0 +1,243 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\User;
+use App\Models\PasswordReset;
+use Illuminate\Support\Facades\Hash;
+use Carbon\Carbon;
+
+/**
+ * OTP Service - Single Responsibility: OTP Generation, Verification, Cleanup
+ * Extracted from ForgotPasswordController to follow Clean Architecture
+ */
+class OtpService
+{
+    /**
+     * OTP configuration
+     */
+    const OTP_LENGTH = 6;
+    const OTP_EXPIRY_MINUTES = 10;
+    const RESET_TOKEN_EXPIRY_MINUTES = 30;
+    const MAX_OTP_ATTEMPTS = 3;
+    const RATE_LIMIT_WINDOW_MINUTES = 5;
+
+    /**
+     * Generate and store OTP for email
+     *
+     * @param string $email
+     * @return array ['otp' => string, 'expires_at' => Carbon, 'record' => PasswordReset]
+     * @throws \Exception
+     */
+    public function generateOtp(string $email): array
+    {
+        // Generate 6-digit OTP
+        $otp = str_pad(random_int(0, 999999), self::OTP_LENGTH, '0', STR_PAD_LEFT);
+
+        // Calculate expiry time
+        $expiresAt = Carbon::now()->addMinutes(self::OTP_EXPIRY_MINUTES);
+
+        // Delete any existing OTP for this email (prevent multiple active OTPs)
+        $this->cleanupOtpByEmail($email);
+
+        // Create new OTP record with HASHED version
+        $record = PasswordReset::create([
+            'email' => $email,
+            'otp' => $otp,  // ← Temporary plaintext for backward compatibility
+            'otp_hash' => Hash::make($otp),  // ← NEW: Secure hashed version
+            'token' => Hash::make($otp),  // ← Legacy field, kept for compatibility
+            'expires_at' => $expiresAt,
+            'created_at' => Carbon::now(),
+        ]);
+
+        return [
+            'otp' => $otp,  // Return plaintext for email sending ONLY
+            'expires_at' => $expiresAt,
+            'record' => $record,
+        ];
+    }
+
+    /**
+     * Verify OTP code (Secure with Hash Check + Fallback)
+     *
+     * @param string $email
+     * @param string $otp
+     * @return array ['valid' => bool, 'record' => PasswordReset|null, 'message' => string]
+     */
+    public function verifyOtp(string $email, string $otp): array
+    {
+        // Find non-expired OTP record
+        $record = PasswordReset::where('email', $email)
+            ->where('expires_at', '>', Carbon::now())
+            ->first();
+
+        if (!$record) {
+            return [
+                'valid' => false,
+                'record' => null,
+                'message' => 'Kode OTP tidak valid atau sudah kedaluwarsa',
+            ];
+        }
+
+        // Security: Use hashed verification first (NEW method)
+        $isValidHashed = !empty($record->otp_hash) && Hash::check($otp, $record->otp_hash);
+
+        // Fallback: Plaintext comparison (OLD method, for backward compatibility)
+        $isValidPlaintext = !empty($record->otp) && $record->otp === $otp;
+
+        if (!$isValidHashed && !$isValidPlaintext) {
+            return [
+                'valid' => false,
+                'record' => $record,
+                'message' => 'Kode OTP tidak valid',
+            ];
+        }
+
+        // OTP is valid
+        return [
+            'valid' => true,
+            'record' => $record,
+            'message' => 'Kode OTP berhasil diverifikasi',
+        ];
+    }
+
+    /**
+     * Mark OTP as verified and generate reset token
+     *
+     * @param PasswordReset $record
+     * @return array ['reset_token' => string, 'expires_at' => Carbon]
+     */
+    public function markOtpVerified(PasswordReset $record): array
+    {
+        // Generate secure reset token for password reset step
+        $resetToken = \Illuminate\Support\Str::random(60);
+        $expiresAt = Carbon::now()->addMinutes(self::RESET_TOKEN_EXPIRY_MINUTES);
+
+        // Update record: mark as verified, store reset token, extend expiry
+        $record->update([
+            'verified_at' => Carbon::now(),
+            'reset_token' => Hash::make($resetToken),
+            'expires_at' => $expiresAt,  // Extend for password reset step
+        ]);
+
+        return [
+            'reset_token' => $resetToken,  // Return plaintext token (one-time use)
+            'expires_at' => $expiresAt,
+        ];
+    }
+
+    /**
+     * Verify reset token (for password reset step)
+     *
+     * @param string $email
+     * @param string $resetToken
+     * @return array ['valid' => bool, 'record' => PasswordReset|null, 'message' => string]
+     */
+    public function verifyResetToken(string $email, string $resetToken): array
+    {
+        // Find verified, non-expired reset record
+        $record = PasswordReset::where('email', $email)
+            ->whereNotNull('verified_at')
+            ->where('expires_at', '>', Carbon::now())
+            ->first();
+
+        if (!$record) {
+            return [
+                'valid' => false,
+                'record' => null,
+                'message' => 'Token reset tidak valid atau sudah kedaluwarsa',
+            ];
+        }
+
+        // Verify reset token hash
+        if (!Hash::check($resetToken, $record->reset_token)) {
+            return [
+                'valid' => false,
+                'record' => $record,
+                'message' => 'Token reset tidak valid',
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'record' => $record,
+            'message' => 'Token reset valid',
+        ];
+    }
+
+    /**
+     * Clean up OTP records for email
+     *
+     * @param string $email
+     * @return int Number of deleted records
+     */
+    public function cleanupOtpByEmail(string $email): int
+    {
+        return PasswordReset::where('email', $email)->delete();
+    }
+
+    /**
+     * Clean up expired OTP records (for scheduled task)
+     *
+     * @return int Number of deleted records
+     */
+    public function cleanupExpiredOtps(): int
+    {
+        return PasswordReset::where('expires_at', '<', Carbon::now())->delete();
+    }
+
+    /**
+     * Check rate limiting (max attempts in time window)
+     *
+     * @param string $email
+     * @return array ['allowed' => bool, 'attempts' => int, 'wait_seconds' => int]
+     */
+    public function checkRateLimit(string $email): array
+    {
+        $recentAttempts = PasswordReset::where('email', $email)
+            ->where('created_at', '>', Carbon::now()->subMinutes(self::RATE_LIMIT_WINDOW_MINUTES))
+            ->count();
+
+        $allowed = $recentAttempts < self::MAX_OTP_ATTEMPTS;
+        $waitSeconds = $allowed ? 0 : self::RATE_LIMIT_WINDOW_MINUTES * 60;
+
+        return [
+            'allowed' => $allowed,
+            'attempts' => $recentAttempts,
+            'wait_seconds' => $waitSeconds,
+        ];
+    }
+
+    /**
+     * Validate user exists and is active
+     *
+     * @param string $email
+     * @return array ['valid' => bool, 'user' => User|null, 'message' => string]
+     */
+    public function validateUser(string $email): array
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return [
+                'valid' => false,
+                'user' => null,
+                'message' => 'Email tidak ditemukan',
+            ];
+        }
+
+        if ($user->status !== 'active') {
+            return [
+                'valid' => false,
+                'user' => $user,
+                'message' => 'Akun tidak aktif. Silakan hubungi administrator.',
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'user' => $user,
+            'message' => 'User valid',
+        ];
+    }
+}
