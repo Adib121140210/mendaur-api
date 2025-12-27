@@ -23,7 +23,8 @@ class DashboardController extends Controller
         $user = User::findOrFail($userId);
 
         // Get user's rank
-        $rank = User::where('total_poin', '>', $user->total_poin)->count() + 1;
+        // FIXED: Use display_poin for ranking
+        $rank = User::where('display_poin', '>', $user->display_poin)->count() + 1;
         $totalUsers = User::count();
 
         // Calculate progress to next level
@@ -38,7 +39,8 @@ class DashboardController extends Controller
         $currentLevel = $user->level;
         // Normalize level to PascalCase (bronze → Bronze, silver → Silver, etc.)
         $currentLevel = ucfirst(strtolower($currentLevel));
-        $currentPoin = $user->total_poin;
+        // FIXED: Use actual_poin for user's balance
+        $currentPoin = $user->actual_poin;
         $nextLevel = $this->getNextLevel($currentLevel);
         // Also normalize nextLevel to match array keys
         $nextLevel = ucfirst(strtolower($nextLevel));
@@ -108,21 +110,23 @@ class DashboardController extends Controller
         }
 
         // Build query with badge count
+        // Filter only nasabah (role_id = 1), exclude admin and superadmin
         $query = User::select(
                 'users.user_id',
                 'users.nama',
                 'users.foto_profil',
-                'users.total_poin',
+                'users.display_poin',
                 'users.total_setor_sampah',
                 'users.level'
             )
             ->selectRaw('COALESCE(COUNT(user_badges.user_badge_id), 0) as badge_count')
             ->leftJoin('user_badges', 'users.user_id', '=', 'user_badges.user_id')
+            ->where('users.role_id', 1)
             ->groupBy(
                 'users.user_id',
                 'users.nama',
                 'users.foto_profil',
-                'users.total_poin',
+                'users.display_poin',
                 'users.total_setor_sampah',
                 'users.level'
             );
@@ -130,7 +134,7 @@ class DashboardController extends Controller
         // Order by type
         switch ($type) {
             case 'poin':
-                $query->orderBy('users.total_poin', 'desc');
+                $query->orderBy('users.display_poin', 'desc');
                 break;
             case 'setor':
                 $query->orderBy('users.total_setor_sampah', 'desc');
@@ -149,7 +153,7 @@ class DashboardController extends Controller
                     'user_id' => $user->user_id,
                     'nama' => $user->nama,
                     'foto_profil' => $user->foto_profil,
-                    'total_poin' => $user->total_poin,
+                    'total_poin' => $user->display_poin,
                     'total_setor_sampah' => $user->total_setor_sampah,
                     'level' => $user->level,
                     'badge_count' => (int) $user->badge_count,
@@ -168,7 +172,7 @@ class DashboardController extends Controller
     public function getGlobalStats()
     {
         $totalUsers = User::count();
-        $totalPoin = User::sum('total_poin');
+        $totalPoin = User::sum('display_poin');  // FIXED: Use display_poin for statistics
         $totalSetor = TabungSampah::where('status', 'approved')->count();
         $totalBerat = TabungSampah::where('status', 'approved')->sum('berat_kg');
 

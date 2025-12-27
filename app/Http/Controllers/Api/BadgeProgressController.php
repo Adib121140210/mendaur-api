@@ -100,26 +100,28 @@ class BadgeProgressController extends Controller
             $limit = $request->get('limit', 10);
             $limit = min($limit, 50); // Max 50
 
+            // Filter only nasabah (role_id = 1), exclude admin and superadmin
             $leaderboard = User::query()
-                ->select('id', 'nama', 'foto_profil', 'total_poin')
+                ->select('user_id', 'nama', 'foto_profil', 'display_poin')
+                ->where('role_id', 1)
                 ->withCount('userBadges')
                 ->orderByDesc('user_badges_count')
-                ->orderByDesc('total_poin')
+                ->orderByDesc('display_poin')
                 ->limit($limit)
                 ->get();
 
             $leaderboard = $leaderboard->map(function($user, $index) {
-                $totalReward = UserBadge::where('user_id', $user->id)
-                    ->join('badges', 'user_badges.badge_id', '=', 'badges.id')
+                $totalReward = UserBadge::where('user_id', $user->user_id)
+                    ->join('badges', 'user_badges.badge_id', '=', 'badges.badge_id')
                     ->sum('badges.reward_poin') ?? 0;
 
                 return [
                     'rank' => $index + 1,
                     'user' => [
-                        'id' => $user->id,
+                        'id' => $user->user_id,
                         'nama' => $user->nama,
                         'foto_profil' => $user->foto_profil,
-                        'total_poin' => $user->total_poin,
+                        'total_poin' => $user->display_poin,
                     ],
                     'badges_earned' => $user->user_badges_count,
                     'total_reward_poin' => $totalReward,

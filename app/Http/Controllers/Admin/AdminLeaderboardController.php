@@ -22,32 +22,29 @@ class AdminLeaderboardController extends Controller
 
             $leaderboard = [];
 
-            // Check if poin_transaksis table exists to get user rankings
-            $hasPoinTable = DB::select("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?",
-                [DB::connection()->getDatabaseName(), 'poin_transaksis']);
+            // Get users ranked by display_poin (leaderboard ranking system)
+            // Filter only nasabah (role_id = 1), exclude admin and superadmin
+            $users = DB::table('users')
+                ->select('user_id as userId', 'nama as userName', 'display_poin as totalPoints')
+                ->where('status', 'active')
+                ->where('role_id', 1)
+                ->orderByDesc('totalPoints')
+                ->orderBy('nama') // Secondary sort for same points
+                ->limit($limit)
+                ->get();
 
-            if (!empty($hasPoinTable)) {
-                // Get users ranked by points if poin_transaksis table exists
-                $users = DB::table('poin_transaksis')
-                    ->join('users', 'poin_transaksis.user_id', '=', 'users.id')
-                    ->select('users.id as userId', 'users.login as userName', DB::raw('SUM(poin_transaksis.poin_didapat) as totalPoints'))
-                    ->groupBy('users.id', 'users.login')
-                    ->orderByDesc('totalPoints')
-                    ->limit($limit)
-                    ->get();
+            $leaderboard = $users->map(function ($user, $index) {
+                // Determine badge based on rank
+                $badge = 'none';
+                if ($index === 0 && $user->totalPoints > 0) {
+                    $badge = 'gold';
+                } elseif ($index === 1 && $user->totalPoints > 0) {
+                    $badge = 'silver';
+                } elseif ($index === 2 && $user->totalPoints > 0) {
+                    $badge = 'bronze';
+                }
 
-                $leaderboard = $users->map(function ($user, $index) {
-                    // Determine badge based on rank
-                    $badge = 'none';
-                    if ($index === 0) {
-                        $badge = 'gold';
-                    } elseif ($index === 1) {
-                        $badge = 'silver';
-                    } elseif ($index === 2) {
-                        $badge = 'bronze';
-                    }
-
-                    return [
+                return [
                         'rank' => $index + 1,
                         'userId' => (int) $user->userId,
                         'userName' => $user->userName,
@@ -57,34 +54,6 @@ class AdminLeaderboardController extends Controller
                         'badge' => $badge,
                     ];
                 })->values()->toArray();
-            } else {
-                // No points table - return simple user list ordered by join date
-                $users = DB::table('users')
-                    ->orderByDesc('created_at')
-                    ->limit($limit)
-                    ->get();
-
-                $leaderboard = $users->map(function ($user, $index) {
-                    $badge = 'none';
-                    if ($index === 0) {
-                        $badge = 'gold';
-                    } elseif ($index === 1) {
-                        $badge = 'silver';
-                    } elseif ($index === 2) {
-                        $badge = 'bronze';
-                    }
-
-                    return [
-                        'rank' => $index + 1,
-                        'userId' => (int) $user->id,
-                        'userName' => $user->login,
-                        'points' => 0,
-                        'wasteSubmitted' => 0,
-                        'avatar' => null,
-                        'badge' => $badge,
-                    ];
-                })->values()->toArray();
-            }
 
             return response()->json([
                 'status' => 'success',
@@ -111,7 +80,7 @@ class AdminLeaderboardController extends Controller
     public function getSettings(Request $request)
     {
         $settings = $this->getLeaderboardSettings();
-        
+
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -142,7 +111,7 @@ class AdminLeaderboardController extends Controller
             'admin_id' => $request->user()->user_id,
             'action_type' => 'update_leaderboard_settings',
             'resource_type' => 'Leaderboard',
-            'resource_id' => null,
+            'resource_id' => 0, // Use 0 for system-wide actions
             'old_values' => null,
             'new_values' => $validated,
             'ip_address' => $request->ip(),
@@ -175,21 +144,21 @@ class AdminLeaderboardController extends Controller
         try {
             // Get current top users before reset for history
             $topUsersBefore = User::where('status', 'active')
-                ->orderBy('total_poin', 'desc')
+                ->orderBy('display_poin', 'desc')
                 ->take(10)
-                ->get(['user_id', 'nama', 'total_poin', 'level']);
+                ->get(['user_id', 'nama', 'display_poin', 'level']);
 
             // Store snapshot for historical data
             $seasonData = [
                 'season' => $this->getCurrentSeason($this->getLeaderboardSettings()['reset_period']),
                 'reset_date' => now(),
                 'top_users' => $topUsersBefore->toArray(),
-                'total_participants' => User::where('status', 'active')->where('total_poin', '>', 0)->count(),
+                'total_participants' => User::where('status', 'active')->where('display_poin', '>', 0)->count(),
             ];
 
-            // Reset all user points to 0
-            $affectedUsers = User::where('total_poin', '>', 0)->count();
-            User::query()->update(['total_poin' => 0]);
+            // Reset leaderboard display points to 0 (keeping actual_poin intact)
+            $affectedUsers = User::where('display_poin', '>', 0)->count();
+            User::query()->update(['display_poin' => 0]);
 
             // Update last reset date
             $settings = $this->getLeaderboardSettings();
@@ -201,7 +170,7 @@ class AdminLeaderboardController extends Controller
                 'admin_id' => $request->user()->user_id,
                 'action_type' => 'reset_leaderboard',
                 'resource_type' => 'Leaderboard',
-                'resource_id' => null,
+                'resource_id' => 0, // Use 0 for system-wide actions
                 'old_values' => ['top_users' => $topUsersBefore->toArray()],
                 'new_values' => ['affected_users' => $affectedUsers, 'season_data' => $seasonData],
                 'ip_address' => $request->ip(),
@@ -223,7 +192,7 @@ class AdminLeaderboardController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             \Log::error('Leaderboard reset failed:', [
                 'admin_id' => $request->user()->user_id,
                 'error' => $e->getMessage(),
@@ -235,9 +204,7 @@ class AdminLeaderboardController extends Controller
                 'message' => 'Gagal mereset leaderboard: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
+    }    /**
      * Get leaderboard history/seasons
      * GET /api/admin/leaderboard/history
      */
@@ -251,7 +218,7 @@ class AdminLeaderboardController extends Controller
         $seasons = $history->map(function ($log) {
             $newValues = is_string($log->new_values) ? json_decode($log->new_values, true) : $log->new_values;
             $oldValues = is_string($log->old_values) ? json_decode($log->old_values, true) : $log->old_values;
-            
+
             return [
                 'reset_date' => $log->created_at,
                 'admin_id' => $log->admin_id,
@@ -272,7 +239,7 @@ class AdminLeaderboardController extends Controller
     private function getLeaderboardSettings(): array
     {
         $settingsPath = storage_path('app/leaderboard_settings.json');
-        
+
         if (file_exists($settingsPath)) {
             return json_decode(file_get_contents($settingsPath), true);
         }
@@ -289,14 +256,14 @@ class AdminLeaderboardController extends Controller
         $settingsPath = storage_path('app/leaderboard_settings.json');
         $currentSettings = $this->getLeaderboardSettings();
         $mergedSettings = array_merge($currentSettings, $settings);
-        
+
         file_put_contents($settingsPath, json_encode($mergedSettings, JSON_PRETTY_PRINT));
     }
 
     private function calculateNextResetDate(string $period): string
     {
         $now = Carbon::now();
-        
+
         switch ($period) {
             case 'weekly':
                 return $now->next(Carbon::MONDAY)->format('Y-m-d');
@@ -315,7 +282,7 @@ class AdminLeaderboardController extends Controller
     private function getCurrentSeason(string $period): string
     {
         $now = Carbon::now();
-        
+
         switch ($period) {
             case 'weekly':
                 return "Week " . $now->weekOfYear . " - " . $now->year;
