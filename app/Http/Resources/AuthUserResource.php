@@ -39,7 +39,8 @@ class AuthUserResource extends JsonResource
                 'no_hp' => $this->no_hp,
                 'alamat' => $this->alamat,
                 'foto_profil' => $this->foto_profil,
-                'total_poin' => $this->total_poin,
+                'total_poin' => $this->getAvailablePoin(), // FIXED: Show actual available poin from transactions
+                'total_poin_display' => $this->total_poin, // For reference (reset by leaderboard)
                 'total_setor_sampah' => $this->total_setor_sampah,
                 'level' => $this->level,
                 'role_id' => $this->role_id,

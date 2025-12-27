@@ -136,8 +136,8 @@ class PenukaranProdukController extends Controller
                     'message' => $e->getMessage(),
                     'data' => [
                         'required_points' => $totalPoin,
-                        'current_points' => $user->total_poin,
-                        'shortage' => max(0, $totalPoin - $user->total_poin)
+                        'current_points' => $user->actual_poin,
+                        'shortage' => max(0, $totalPoin - $user->actual_poin)
                     ]
                 ], 400);
             }
@@ -265,7 +265,7 @@ class PenukaranProdukController extends Controller
             try {
                 // Refund points to user
                 $user = $redemption->user;
-                $user->increment('total_poin', $redemption->poin_digunakan);
+                $user->increment('actual_poin', $redemption->poin_digunakan);
 
                 // Return stock to product
                 $produk = $redemption->produk;
@@ -287,7 +287,7 @@ class PenukaranProdukController extends Controller
                         'id' => $redemption->id,
                         'status' => $redemption->status,
                         'poin_dikembalikan' => $redemption->poin_digunakan,
-                        'user_total_poin' => $user->total_poin,
+                        'user_actual_poin' => $user->actual_poin,
                         'stok_dikembalikan' => $redemption->jumlah
                     ]
                 ], 200);
@@ -342,7 +342,7 @@ class PenukaranProdukController extends Controller
                 // Only refund if not already cancelled
                 if ($redemption->status !== 'cancelled') {
                     $user = $redemption->user;
-                    $user->increment('total_poin', $redemption->poin_digunakan);
+                    $user->increment('actual_poin', $redemption->poin_digunakan);
 
                     $produk = $redemption->produk;
                     $produk->increment('stok', $redemption->jumlah);

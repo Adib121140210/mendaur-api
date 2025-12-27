@@ -48,11 +48,13 @@ use App\Http\Controllers\Admin\ActivityLogController;
 Route::post('login', [AuthController::class, 'login'])->name('login');
 Route::post('register', [AuthController::class, 'register']);
 
-// Forgot Password Routes (Public)
-Route::post('forgot-password', [ForgotPasswordController::class, 'sendOTP']);
+// Forgot Password Routes (Public) - WITH RATE LIMITING
+Route::post('forgot-password', [ForgotPasswordController::class, 'sendOTP'])
+    ->middleware('rate.limit.otp');
 Route::post('verify-otp', [ForgotPasswordController::class, 'verifyOTP']);
 Route::post('reset-password', [ForgotPasswordController::class, 'resetPassword']);
-Route::post('resend-otp', [ForgotPasswordController::class, 'resendOTP']); // Optional
+Route::post('resend-otp', [ForgotPasswordController::class, 'resendOTP'])
+    ->middleware('rate.limit.otp'); // Rate limit resend too
 
 // Jadwal Penyetoran (Public - for form)
 Route::get('jadwal-penyetoran', [JadwalPenyetoranController::class, 'index']);
@@ -187,7 +189,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Comprehensive Admin Endpoints
-    Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
+    Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
         // Dashboard Overview
         Route::get('dashboard/overview', [AdminDashboardController::class, 'overview']);
         Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
@@ -358,9 +360,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('database-stats', [SystemSettingsController::class, 'databaseStats']);
 
         // Database Backup Management
-        Route::post('backup', [SystemSettingsController::class, 'backup']);
-        Route::get('backups', [SystemSettingsController::class, 'listBackups']);
-        Route::delete('backups/{filename}', [SystemSettingsController::class, 'deleteBackup']);
+        // NOTE: Excluded from Phase 1 - Backup dilakukan manual di level server
+        // Route::post('backup', [SystemSettingsController::class, 'backup']);
+        // Route::get('backups', [SystemSettingsController::class, 'listBackups']);
+        // Route::delete('backups/{filename}', [SystemSettingsController::class, 'deleteBackup']);
     });
 });
 

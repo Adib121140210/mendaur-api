@@ -445,9 +445,9 @@ class AdminAnalyticsController extends Controller
                 'users.nama',
                 'users.email',
                 DB::raw('SUM(CASE WHEN poin_transaksis.poin_didapat > 0 THEN poin_transaksis.poin_didapat ELSE 0 END) as total_earned'),
-                DB::raw('users.total_poin as current_balance')
+                DB::raw('users.actual_poin as current_balance')  // FIXED: Use actual_poin
             )
-            ->groupBy('users.user_id', 'users.nama', 'users.email', 'users.total_poin')
+            ->groupBy('users.user_id', 'users.nama', 'users.email', 'users.actual_poin')  // FIXED: Use actual_poin
             ->orderByDesc('total_earned')
             ->limit(10)
             ->get();

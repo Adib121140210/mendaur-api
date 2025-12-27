@@ -61,10 +61,12 @@ class AdminUserController extends Controller
                     'no_hp' => $user->no_hp,
                     'status' => $user->status,
                     'tipe_nasabah' => $user->tipe_nasabah,
-                    'role_id' => (int) $user->role_id,
-                    'level' => (int) $user->level,
-                    'total_poin' => (int) $user->total_poin,
-                    'total_setor_sampah' => (float) $user->total_setor_sampah,
+                    'role_id' => $user->role_id ? (int) $user->role_id : null,
+                    'level' => $user->level, // String: Bronze, Silver, Gold, Admin, Superadmin
+                    'total_poin' => (int) ($user->actual_poin ?? 0),
+                    'display_poin' => (int) ($user->display_poin ?? 0),
+                    'actual_poin' => (int) ($user->actual_poin ?? 0),
+                    'total_setor_sampah' => (float) ($user->total_setor_sampah ?? 0),
                     'joinDate' => $user->created_at,
                     'lastUpdated' => $user->updated_at,
                 ];

@@ -22,7 +22,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'alamat' => $this->alamat,
             'foto_profil' => $this->foto_profil,
-            'total_poin' => $this->total_poin,
+            'actual_poin' => $this->actual_poin,
             'poin_tercatat' => $this->poin_tercatat,
             'total_setor_sampah' => $this->total_setor_sampah,
             'level' => $this->level,

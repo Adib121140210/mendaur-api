@@ -17,7 +17,7 @@ class UserPointResource extends JsonResource
         return [
             'id' => $this->id,
             'nama' => $this->nama,
-            'total_poin' => $this->total_poin,
+            'actual_poin' => $this->actual_poin,
             'level' => $this->level,
             'foto_profil' => $this->foto_profil,
             'total_setor_sampah' => $this->total_setor_sampah,

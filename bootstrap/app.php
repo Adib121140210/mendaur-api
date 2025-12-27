@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'role' => \App\Http\Middleware\CheckRole::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
+            'rate.limit.otp' => \App\Http\Middleware\RateLimitOtp::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

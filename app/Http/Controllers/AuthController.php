@@ -57,7 +57,7 @@ class AuthController extends Controller
                     'nama' => $user->nama,
                     'email' => $user->email,
                     'no_hp' => $user->no_hp,
-                    'total_poin' => $user->total_poin,
+                    'actual_poin' => $user->actual_poin,
                     'level' => $user->level,
                     'role_id' => $user->role_id,
                     'role' => $roleName,
@@ -87,7 +87,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
             'no_hp' => $request->no_hp,
             'alamat' => $request->alamat,
-            'total_poin' => 0,
+            'actual_poin' => 0,
             'total_setor_sampah' => 0,
             'level' => 'Pemula',
             'role_id' => 1,
@@ -156,9 +156,9 @@ class AuthController extends Controller
 
         // Update only fillable fields that were provided
         $updateData = $request->only([
-            'nama', 
-            'email', 
-            'no_hp', 
+            'nama',
+            'email',
+            'no_hp',
             'alamat',
             'nama_bank',
             'nomor_rekening',

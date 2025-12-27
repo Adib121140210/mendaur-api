@@ -19,9 +19,7 @@
 /storage/*.key
 /storage/pail
 
-# Documentation and test files (excluded from git)
-*.md
-*.txt
+# Test and debug files (excluded from git)
 test_*.php
 *_test.php
 test-*.php
@@ -29,6 +27,7 @@ check_*.php
 check-*.php
 award_*.php
 sync_*.php
+batch_*.php
 DROP_*.sql
 VERIFY_*.sql
 verify_*.sql
@@ -37,17 +36,18 @@ test-form.html
 test-cors.html
 test-login.html
 test-login.html
+AUDIT_*.txt
+IMPLEMENTATION_TEST_REPORT.php
+
+# Backup files
+*_BACKUP.php
+*_OLD.php
+adminApi_FIXED.js
+
 /vendor
 Homestead.json
 Homestead.yaml
 Thumbs.db
-
-# Documentation (cleanup)
-*.md
-DOCUMENTATION/
-*.txt
-*.ps1
-*.sql
 
 # Frontend API files (not part of backend)
 API_LIST_FOR_FRONTEND.js

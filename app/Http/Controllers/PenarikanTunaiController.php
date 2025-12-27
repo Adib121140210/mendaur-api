@@ -37,12 +37,15 @@ class PenarikanTunaiController extends Controller
         // Get authenticated user from token
         $user = $request->user();
 
-        if ($user->total_poin < $validated['jumlah_poin']) {
+        // FIXED: Use actual available poin from transactions, not actual_poin field
+        $availablePoin = $user->getUsablePoin();
+
+        if ($availablePoin < $validated['jumlah_poin']) {
             return response()->json([
                 'success' => false,
                 'message' => 'Poin tidak mencukupi',
                 'errors' => [
-                    'jumlah_poin' => ["Saldo poin Anda hanya {$user->total_poin}"]
+                    'jumlah_poin' => ["Saldo poin Anda hanya {$availablePoin}"]
                 ]
             ], 400);
         }
@@ -53,7 +56,7 @@ class PenarikanTunaiController extends Controller
         DB::beginTransaction();
         try {
             // CRITICAL: Deduct points immediately to prevent double spending
-            $user->decrement('total_poin', $validated['jumlah_poin']);
+            $user->decrement('actual_poin', $validated['jumlah_poin']);
 
             // Create withdrawal record
             $withdrawal = PenarikanTunai::create([

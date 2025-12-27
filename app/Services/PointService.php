@@ -79,9 +79,9 @@ class PointService
 
                 // Update user total points
                 $user = User::findOrFail($userId);
-                $oldTotal = $user->total_poin;
-                $user->increment('total_poin', $points);
-                $newTotal = $user->total_poin;
+                $oldTotal = $user->actual_poin;
+                $user->increment('actual_poin', $points);
+                $newTotal = $user->actual_poin;
 
                 // Log for debugging
                 Log::info('Point transaction recorded', [
@@ -239,8 +239,8 @@ class PointService
         ?int $penukaranId = null
     ): PoinTransaksi {
         // Validate sufficient points
-        if ($user->total_poin < $poinDigunakan) {
-            throw new \Exception("Poin tidak cukup. Anda memiliki {$user->total_poin} poin tetapi membutuhkan {$poinDigunakan} poin.");
+        if ($user->actual_poin < $poinDigunakan) {
+            throw new \Exception("Poin tidak cukup. Anda memiliki {$user->actual_poin} poin tetapi membutuhkan {$poinDigunakan} poin.");
         }
 
         return self::recordPointTransaction(
@@ -381,7 +381,7 @@ class PointService
         $spent = self::getTotalSpent($userId);
 
         return [
-            'current_balance' => $user->total_poin,
+            'current_balance' => $user->actual_poin,
             'total_earned' => $earned,
             'total_spent' => $spent,
             'transaction_count' => PoinTransaksi::where('user_id', $userId)->count(),

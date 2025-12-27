@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\UserBadge;
 
 class BadgeProgress extends Model
 {
@@ -47,11 +48,12 @@ class BadgeProgress extends Model
     {
         $badge = $this->badge;
 
-        // Determine current value based on badge type
+        // Determine current value based on badge type (ensure not NULL)
+        // Use display_poin for poin-based badges (the correct column name)
         $currentValue = match($badge->tipe) {
-            'poin' => $user->total_poin,
-            'setor' => $user->total_setor_sampah,
-            'kombinasi' => min($user->total_poin, $user->total_setor_sampah),
+            'poin' => $user->display_poin ?? 0,
+            'setor' => $user->total_setor_sampah ?? 0,
+            'kombinasi' => min($user->display_poin ?? 0, $user->total_setor_sampah ?? 0),
             'ranking' => $this->calculateRankingProgress($user),
             default => 0,
         };
@@ -66,10 +68,20 @@ class BadgeProgress extends Model
         };
 
         // Calculate percentage
-        $percentage = $targetValue > 0 ? min(($currentValue / $targetValue) * 100, 100) : 0;
+        if ($badge->tipe === 'ranking') {
+            // For ranking badges: unlocked if current rank <= target rank
+            // current_value = user's rank (1 = best)
+            // target_value = required rank (e.g., 10 for "Top 10")
+            $isUnlocked = $currentValue > 0 && $currentValue <= $targetValue;
+            $percentage = $isUnlocked ? 100 : 0;
+        } else {
+            // For other badges: standard percentage calculation
+            $percentage = $targetValue > 0 ? min(($currentValue / $targetValue) * 100, 100) : 0;
+            $isUnlocked = $percentage >= 100;
+        }
 
-        // Check if unlocked
-        $isUnlocked = $percentage >= 100;
+        // Track if badge was already unlocked before this update
+        $wasUnlockedBefore = $this->is_unlocked;
 
         $this->update([
             'current_value' => $currentValue,
@@ -78,6 +90,29 @@ class BadgeProgress extends Model
             'is_unlocked' => $isUnlocked,
             'unlocked_at' => $isUnlocked && !$this->unlocked_at ? now() : $this->unlocked_at,
         ]);
+
+        // If badge just got unlocked (wasn't unlocked before), sync to user_badges
+        if ($isUnlocked && !$wasUnlockedBefore) {
+            $this->syncToUserBadges();
+        }
+    }
+
+    /**
+     * Sync unlocked badge to user_badges table
+     * This ensures data consistency between badge_progress and user_badges
+     */
+    private function syncToUserBadges(): void
+    {
+        UserBadge::firstOrCreate(
+            [
+                'user_id' => $this->user_id,
+                'badge_id' => $this->badge_id,
+            ],
+            [
+                'tanggal_dapat' => $this->unlocked_at ?? now(),
+                'reward_claimed' => false,
+            ]
+        );
     }
 
     /**
@@ -86,8 +121,8 @@ class BadgeProgress extends Model
      */
     private function calculateRankingProgress(User $user): int
     {
-        // Get user's rank (1-indexed)
-        $rank = User::where('total_poin', '>', $user->total_poin)->count() + 1;
+        // Get user's rank (1-indexed) based on display_poin
+        $rank = User::where('display_poin', '>', $user->display_poin ?? 0)->count() + 1;
         return $rank;
     }
 }

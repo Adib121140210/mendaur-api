@@ -455,7 +455,7 @@ class UserController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'poin_saat_ini' => (int) $user->total_poin,
+                'poin_saat_ini' => (int) $user->actual_poin,
                 'poin_earned_bulan_ini' => (int) $poinEarnedThisMonth,
                 'poin_earned_tahun_ini' => (int) $poinEarnedThisYear,
                 'recent_activities' => $recentActivities,

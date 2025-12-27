@@ -13,6 +13,7 @@ class PasswordReset extends Model
         'email',
         'token',
         'otp',
+        'otp_hash',  // NEW: For secure hashed OTP storage
         'reset_token',
         'expires_at',
         'verified_at',
@@ -28,12 +29,10 @@ class PasswordReset extends Model
     public $timestamps = false;
 
     /**
-     * Automatically hash the OTP when storing
+     * NO LONGER HASH OTP IN MODEL - Handled by Service Layer
+     * Keep OTP plaintext temporarily for backward compatibility
+     * Will be removed in Phase 3 after stable
      */
-    public function setOtpAttribute($value)
-    {
-        $this->attributes['otp'] = $value; // Store plain OTP for verification
-    }
 
     /**
      * Check if OTP is expired

@@ -35,7 +35,8 @@ class User extends Authenticatable
         'no_hp',
         'alamat',
         'foto_profil',
-        'total_poin',
+        'display_poin',      // For leaderboard ranking (can be reset)
+        'actual_poin',       // For transactions/withdrawals (calculated from poin_transaksis)
         'total_setor_sampah',
         'level',
         'role_id',
@@ -79,7 +80,8 @@ class User extends Authenticatable
      */
     protected $attributes = [
         'tipe_nasabah' => 'konvensional',
-        'total_poin' => 0,
+        'display_poin' => 0,     // For leaderboard display
+        'actual_poin' => 0,      // Will be calculated from poin_transaksis
         'poin_tercatat' => 0,
         'total_setor_sampah' => 0,
     ];
@@ -164,7 +166,7 @@ class User extends Authenticatable
 
     public function poinTransaksis()
     {
-        return $this->hasMany(\App\Models\PoinTransaksi::class);
+        return $this->hasMany(\App\Models\PoinTransaksi::class, 'user_id', 'user_id');
     }
 
     /**
@@ -276,7 +278,7 @@ class User extends Authenticatable
 
     /**
      * Get displayed poin based on nasabah type
-     * - Konvensional: shows total_poin (usable)
+     * - Konvensional: shows actual_poin (calculated from transactions)
      * - Modern: shows 0 (poin not directly usable for features)
      */
     public function getDisplayedPoin(): int
@@ -284,12 +286,12 @@ class User extends Authenticatable
         if ($this->isNasabahModern()) {
             return 0; // Modern nasabah cannot use poin for features
         }
-        return (int)$this->total_poin;
+        return (int)$this->actual_poin;
     }
 
     /**
      * Get actual usable poin balance
-     * - Konvensional: total_poin
+     * - Konvensional: actual_poin (calculated from transactions)
      * - Modern: always 0 (cannot use for features)
      */
     public function getActualPoinBalance(): int
@@ -297,7 +299,7 @@ class User extends Authenticatable
         if ($this->isNasabahModern()) {
             return 0;
         }
-        return (int)$this->total_poin;
+        return (int)$this->actual_poin;
     }
 
     /**
@@ -320,7 +322,7 @@ class User extends Authenticatable
         }
 
         // Konvensional nasabah can use if they have poin and permission
-        if ($this->total_poin <= 0) {
+        if ($this->actual_poin <= 0) {
             return false;
         }
 
@@ -348,11 +350,14 @@ class User extends Authenticatable
 
     /**
      * Add usable poin only for konvensional nasabah
+     * This updates both display_poin (for leaderboard) and actual_poin (for transactions)
      */
     public function addUsablePoin(int $amount, string $reason = ''): void
     {
         if ($this->isNasabahKonvensional()) {
-            $this->increment('total_poin', $amount);
+            // Update both display_poin and actual_poin
+            $this->increment('display_poin', $amount);
+            $this->increment('actual_poin', $amount);
         }
     }
 
@@ -387,4 +392,45 @@ class User extends Authenticatable
     {
         return $this->isAdminUser() || $this->isSuperAdmin();
     }
+
+    /**
+     * Get actual available poin from poin_transaksis table
+     * This is the real poin balance, regardless of display_poin field
+     */
+    public function getAvailablePoin(): int
+    {
+        return $this->poinTransaksis()->sum('poin_didapat') ?? 0;
+    }
+
+    /**
+     * Update actual_poin field based on poin_transaksis data
+     * This should be called when needed to sync the cache
+     */
+    public function updateActualPoin(): void
+    {
+        $this->actual_poin = $this->getAvailablePoin();
+        $this->save();
+    }
+
+    /**
+     * Get usable poin for konvensional nasabah
+     * Modern nasabah always returns 0 (cannot use poin for withdrawal/exchange)
+     */
+    public function getUsablePoin(): int
+    {
+        if ($this->isNasabahModern()) {
+            return 0; // Modern nasabah cannot use poin
+        }
+
+        return $this->getAvailablePoin();
+    }
+
+    /**
+     * Check if user has enough poin for transaction
+     */
+    public function hasEnoughPoin(int $requiredPoin): bool
+    {
+        return $this->getUsablePoin() >= $requiredPoin;
+    }
 }
+

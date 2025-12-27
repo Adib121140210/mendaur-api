@@ -40,8 +40,9 @@ class DualNasabahFeatureAccessService
             return $result;
         }
 
-        // Check if user has poin
-        if ($user->total_poin <= 0) {
+        // FIXED: Check using actual available poin from transactions, not actual_poin field
+        $availablePoin = $user->getUsablePoin();
+        if ($availablePoin <= 0) {
             $result['reason'] = 'Saldo poin Anda tidak cukup';
             $result['code'] = 'INSUFFICIENT_POIN';
             return $result;
@@ -87,9 +88,10 @@ class DualNasabahFeatureAccessService
             return $result;
         }
 
-        // Check if user has enough poin
-        if ($user->total_poin < $poinRequired) {
-            $result['reason'] = "Poin Anda tidak cukup (diperlukan: {$poinRequired}, poin Anda: {$user->total_poin})";
+        // FIXED: Check using actual available poin from transactions, not actual_poin field
+        $availablePoin = $user->getUsablePoin();
+        if ($availablePoin < $poinRequired) {
+            $result['reason'] = "Poin Anda tidak cukup (diperlukan: {$poinRequired}, poin Anda: {$availablePoin})";
             $result['code'] = 'INSUFFICIENT_POIN';
             return $result;
         }
@@ -126,7 +128,7 @@ class DualNasabahFeatureAccessService
     /**
      * Add poin untuk nasabah setelah deposit sampah
      *
-     * - Konvensional: tambah ke total_poin (usable) DAN poin_tercatat (audit)
+     * - Konvensional: tambah ke actual_poin (usable) DAN poin_tercatat (audit)
      * - Modern: hanya tambah ke poin_tercatat (recorded only, not usable)
      */
     public function addPoinForDeposit(
@@ -139,9 +141,9 @@ class DualNasabahFeatureAccessService
         // Always add to poin_tercatat for audit trail
         $user->addPoinTercatat($poin, "Deposit sampah dari $sumber");
 
-        // Add to total_poin only for konvensional nasabah
+        // Add to actual_poin only for konvensional nasabah
         if ($user->isNasabahKonvensional()) {
-            $user->increment('total_poin', $poin);
+            $user->increment('actual_poin', $poin);
         }
 
         $user->save();
@@ -178,9 +180,9 @@ class DualNasabahFeatureAccessService
             throw new \Exception('Modern nasabah cannot redeem poin');
         }
 
-        // Deduct from total_poin
-        if ($user->total_poin >= $poin) {
-            $user->decrement('total_poin', $poin);
+        // Deduct from actual_poin
+        if ($user->actual_poin >= $poin) {
+            $user->decrement('actual_poin', $poin);
         }
 
         // Log to poin_transaksis
@@ -214,9 +216,9 @@ class DualNasabahFeatureAccessService
             throw new \Exception('Modern nasabah cannot withdraw poin');
         }
 
-        // Deduct from total_poin
-        if ($user->total_poin >= $poin) {
-            $user->decrement('total_poin', $poin);
+        // Deduct from actual_poin
+        if ($user->actual_poin >= $poin) {
+            $user->decrement('actual_poin', $poin);
         }
 
         // Log to poin_transaksis
@@ -243,8 +245,8 @@ class DualNasabahFeatureAccessService
         return [
             'tipe_nasabah' => $user->tipe_nasabah,
             'poin_tercatat' => $user->poin_tercatat,
-            'poin_usable' => $user->isNasabahKonvensional() ? $user->total_poin : 0,
-            'total_poin' => $user->total_poin,
+            'poin_usable' => $user->isNasabahKonvensional() ? $user->actual_poin : 0,
+            'actual_poin' => $user->actual_poin,
             'display_poin' => $user->getDisplayedPoin(),
             'message' => $user->isNasabahModern()
                 ? 'Poin Anda tercatat untuk badge dan leaderboard, tetapi tidak dapat digunakan untuk penarikan atau penukaran produk'
@@ -268,7 +270,7 @@ class DualNasabahFeatureAccessService
             'deskripsi' => $deskripsi,
             'poin_perubahan' => $poinChange,
             'poin_tercatat' => $user->poin_tercatat,
-            'poin_usable' => $user->isNasabahKonvensional() ? $user->total_poin : 0,
+            'poin_usable' => $user->isNasabahKonvensional() ? $user->actual_poin : 0,
             'source_tipe' => $sourceTipe,
             'tanggal' => now(),
         ]);
@@ -286,8 +288,8 @@ class DualNasabahFeatureAccessService
             'nama' => $user->nama,
             'tipe_nasabah' => $user->tipe_nasabah,
             'poin_tercatat' => $user->poin_tercatat,
-            'poin_usable' => $user->isNasabahKonvensional() ? $user->total_poin : 0,
-            'total_poin' => $user->total_poin,
+            'poin_usable' => $user->isNasabahKonvensional() ? $user->actual_poin : 0,
+            'actual_poin' => $user->actual_poin,
             'badges_count' => $badges->count(),
             'deposits_count' => $user->tabungSampahs()->count(),
             'feature_access' => [
