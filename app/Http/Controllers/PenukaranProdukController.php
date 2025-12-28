@@ -386,6 +386,7 @@ class PenukaranProdukController extends Controller
     /**
      * Get product redemptions by user ID
      * GET /api/penukaran-produk/user/{userId}
+     * Optimized with select to reduce data transfer
      */
     public function byUser(Request $request, $userId)
     {
@@ -398,7 +399,11 @@ class PenukaranProdukController extends Controller
                 ], 403);
             }
 
-            $query = PenukaranProduk::with('produk')
+            $query = PenukaranProduk::select([
+                    'penukaran_produk_id', 'user_id', 'produk_id', 
+                    'jumlah', 'total_poin', 'status', 'created_at', 'updated_at'
+                ])
+                ->with(['produk:produk_id,nama_produk,harga_poin,gambar'])
                 ->where('user_id', $userId)
                 ->orderBy('created_at', 'desc');
 
@@ -407,7 +412,8 @@ class PenukaranProdukController extends Controller
                 $query->where('status', $request->status);
             }
 
-            $redemptions = $query->get();
+            // Limit results to prevent large data transfer
+            $redemptions = $query->limit(100)->get();
 
             return response()->json([
                 'status' => 'success',

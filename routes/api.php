@@ -49,7 +49,33 @@ Route::get('health', function () {
     return response()->json([
         'status' => 'ok',
         'timestamp' => now()->toIso8601String(),
-        'service' => 'mendaur-api'
+        'service' => 'Mendaur Bank Sampah API',
+        'version' => '1.0.2' // Updated for image upload fix
+    ]);
+});
+
+// Debug endpoint - System status check
+Route::get('debug', function () {
+    $dbStatus = 'unknown';
+    try {
+        \DB::connection()->getPdo();
+        $dbStatus = 'connected';
+    } catch (\Exception $e) {
+        $dbStatus = 'error: ' . $e->getMessage();
+    }
+
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'service' => 'Mendaur Bank Sampah API',
+        'version' => '1.0.2',
+        'environment' => app()->environment(),
+        'database' => $dbStatus,
+        'php_version' => PHP_VERSION,
+        'laravel_version' => app()->version(),
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'memory_limit' => ini_get('memory_limit'),
     ]);
 });
 
@@ -58,7 +84,7 @@ Route::get('debug/cloudinary-config', function () {
     $cloudName = config('services.cloudinary.cloud_name');
     $apiKey = config('services.cloudinary.api_key');
     $apiSecret = config('services.cloudinary.api_secret');
-    
+
     return response()->json([
         'status' => 'ok',
         'cloudinary_configured' => !empty($cloudName) && !empty($apiKey) && !empty($apiSecret),
@@ -469,4 +495,5 @@ Route::get('/health', function () {
         'version' => '1.0.0'
     ]);
 });
+
 

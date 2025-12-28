@@ -192,6 +192,7 @@ class PenarikanTunaiController extends Controller
     /**
      * Get withdrawals by user ID
      * GET /api/penarikan-tunai/user/{userId}
+     * Optimized with select to reduce data transfer
      */
     public function byUser(Request $request, $userId)
     {
@@ -203,14 +204,20 @@ class PenarikanTunaiController extends Controller
             ], 403);
         }
 
-        $query = PenarikanTunai::where('user_id', $userId);
+        $query = PenarikanTunai::select([
+                'penarikan_tunai_id', 'user_id', 'jumlah_poin', 'jumlah_rupiah',
+                'nomor_rekening', 'nama_bank', 'nama_penerima', 'status', 
+                'created_at', 'updated_at'
+            ])
+            ->where('user_id', $userId);
 
         // Filter by status if provided
         if ($request->has('status') && $request->status !== 'semua') {
             $query->where('status', $request->status);
         }
 
-        $withdrawals = $query->orderBy('created_at', 'desc')->get();
+        // Limit results to prevent large data transfer
+        $withdrawals = $query->orderBy('created_at', 'desc')->limit(100)->get();
 
         return response()->json([
             'success' => true,
