@@ -10,12 +10,13 @@ use App\Http\Resources\UserResource;
 
 /**
  * AuthController handles user authentication (login, register, logout)
- * Updated: December 28, 2025 - Added foto_profil to login response
+ * Updated: December 28, 2025 15:45 - Added foto_profil to login response
+ * Version: 1.1.0 - Includes Cloudinary support
  */
 class AuthController extends Controller
 {
     /**
-     * Login user
+     * Login user and return user data with foto_profil
      */
     public function login(Request $request)
     {
@@ -52,6 +53,7 @@ class AuthController extends Controller
             $permissionsCount = $role ? $role->permissions()->count() : 0;
         }
 
+        // Return login response with foto_profil field
         return response()->json([
             'status' => 'success',
             'message' => 'Login berhasil',
@@ -61,7 +63,7 @@ class AuthController extends Controller
                     'nama' => $user->nama,
                     'email' => $user->email,
                     'no_hp' => $user->no_hp,
-                    'foto_profil' => $this->getPhotoUrl($user->foto_profil),
+                    'foto_profil' => $this->getPhotoUrl($user->foto_profil), // Cloudinary URL or null
                     'actual_poin' => $user->actual_poin,
                     'level' => $user->level,
                     'role_id' => $user->role_id,
