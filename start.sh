@@ -32,6 +32,17 @@ done
 echo "📦 Running database migrations..."
 php artisan migrate --force
 
+# Run seeders only on first deployment (check if users table is empty)
+echo "🌱 Checking if seeding is needed..."
+USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null | tail -1)
+if [ "$USER_COUNT" = "0" ] || [ -z "$USER_COUNT" ]; then
+    echo "🌱 Running database seeders..."
+    php artisan db:seed --force
+    echo "✅ Seeding completed!"
+else
+    echo "✅ Database already has data (${USER_COUNT} users), skipping seeder."
+fi
+
 # Clear caches
 echo "🧹 Clearing caches..."
 php artisan config:clear
