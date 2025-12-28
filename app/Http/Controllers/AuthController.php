@@ -8,6 +8,10 @@ use App\Models\User;
 use App\Http\Resources\AuthUserResource;
 use App\Http\Resources\UserResource;
 
+/**
+ * AuthController handles user authentication (login, register, logout)
+ * Updated: December 28, 2025 - Added foto_profil to login response
+ */
 class AuthController extends Controller
 {
     /**
