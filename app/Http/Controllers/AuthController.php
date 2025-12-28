@@ -86,11 +86,12 @@ class AuthController extends Controller
 
         // If already a full URL (Cloudinary), return as-is
         if (str_starts_with($fotoProfil, 'http://') || str_starts_with($fotoProfil, 'https://')) {
-            return $fotoProfil;
+            // Ensure HTTPS for Cloudinary URLs
+            return str_replace('http://', 'https://', $fotoProfil);
         }
 
-        // Otherwise, it's local storage path
-        return asset('storage/' . $fotoProfil);
+        // Otherwise, it's local storage path - use secure URL
+        return secure_asset('storage/' . $fotoProfil);
     }
 
     /**

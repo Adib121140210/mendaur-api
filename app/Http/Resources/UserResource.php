@@ -43,10 +43,11 @@ class UserResource extends JsonResource
 
         // If it's already a full URL (Cloudinary), return as-is
         if (str_starts_with($this->foto_profil, 'http://') || str_starts_with($this->foto_profil, 'https://')) {
-            return $this->foto_profil;
+            // Ensure HTTPS
+            return str_replace('http://', 'https://', $this->foto_profil);
         }
 
-        // Otherwise, it's a local storage path - convert to full URL
-        return asset('storage/' . $this->foto_profil);
+        // Otherwise, it's a local storage path - convert to secure full URL
+        return secure_asset('storage/' . $this->foto_profil);
     }
 }
