@@ -20,11 +20,12 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'https://mendaur.up.railway.app',  // Production
-        'http://localhost:5173',            // Local Vite dev
-        'http://127.0.0.1:5173',            // Local IP Vite dev
-        'http://localhost:3000',            // Alternative local
-        'http://127.0.0.1:3000',            // Alternative local IP
+        'https://mendaur.up.railway.app',              // Backend Production
+        'https://sedulurmendaur-production.up.railway.app', // Frontend Production
+        'http://localhost:5173',                        // Local Vite dev
+        'http://127.0.0.1:5173',                        // Local IP Vite dev
+        'http://localhost:3000',                        // Alternative local
+        'http://127.0.0.1:3000',                        // Alternative local IP
     ],
 
     'allowed_origins_patterns' => [],
