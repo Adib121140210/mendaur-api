@@ -25,11 +25,16 @@ class ArtikelController extends Controller
     }
 
     /**
-     * Get specific article by slug
+     * Get specific article by slug or ID
      */
-    public function show($slug)
+    public function show($identifier)
     {
-        $artikel = Artikel::where('slug', $slug)->first();
+        // Support both ID (numeric) and slug lookup
+        if (is_numeric($identifier)) {
+            $artikel = Artikel::find($identifier);
+        } else {
+            $artikel = Artikel::where('slug', $identifier)->first();
+        }
 
         if (!$artikel) {
             return response()->json([

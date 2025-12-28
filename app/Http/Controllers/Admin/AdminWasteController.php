@@ -200,8 +200,10 @@ class AdminWasteController extends Controller
                 'poin_didapat' => $request->poin_diberikan,
             ]);
 
-            // Add poin to user
-            $user->increment('total_poin', $request->poin_diberikan);
+            // Add poin to user (actual_poin for transactions, display_poin for leaderboard)
+            $user->increment('actual_poin', $request->poin_diberikan);
+            $user->increment('display_poin', $request->poin_diberikan);
+            $user->increment('poin_tercatat', $request->poin_diberikan);
 
             // Log action in audit_logs
             AuditLog::create([

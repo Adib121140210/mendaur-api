@@ -47,6 +47,13 @@ class UserResource extends JsonResource
             return str_replace('http://', 'https://', $this->foto_profil);
         }
 
+        // Validate that foto_profil is a valid file path (not emoji or random text)
+        // Valid paths should contain alphanumeric chars, underscores, hyphens, slashes, dots
+        if (!preg_match('/^[\w\-\.\/]+$/', $this->foto_profil)) {
+            // Invalid path format (could be emoji or garbage data), return null
+            return null;
+        }
+
         // Otherwise, it's a local storage path - convert to secure full URL
         return secure_asset('storage/' . $this->foto_profil);
     }
