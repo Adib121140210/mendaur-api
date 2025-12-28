@@ -35,6 +35,7 @@ class User extends Authenticatable
         'no_hp',
         'alamat',
         'foto_profil',
+        'foto_profil_public_id', // Cloudinary public_id for deletion
         'display_poin',      // For leaderboard ranking (can be reset)
         'actual_poin',       // For transactions/withdrawals (calculated from poin_transaksis)
         'total_setor_sampah',

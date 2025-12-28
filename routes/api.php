@@ -53,6 +53,22 @@ Route::get('health', function () {
     ]);
 });
 
+// Cloudinary Config Check (for debugging - should be removed in production)
+Route::get('debug/cloudinary-config', function () {
+    $cloudName = config('services.cloudinary.cloud_name');
+    $apiKey = config('services.cloudinary.api_key');
+    $apiSecret = config('services.cloudinary.api_secret');
+    
+    return response()->json([
+        'status' => 'ok',
+        'cloudinary_configured' => !empty($cloudName) && !empty($apiKey) && !empty($apiSecret),
+        'cloud_name' => $cloudName ? substr($cloudName, 0, 3) . '***' : 'NOT SET',
+        'api_key_set' => !empty($apiKey),
+        'api_secret_set' => !empty($apiSecret),
+        'upload_folder' => config('services.cloudinary.upload_folder', 'mendaur'),
+    ]);
+});
+
 // Auth Routes
 Route::post('login', [AuthController::class, 'login'])->name('login');
 Route::post('register', [AuthController::class, 'register']);

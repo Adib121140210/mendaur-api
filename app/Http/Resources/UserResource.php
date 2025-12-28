@@ -21,7 +21,7 @@ class UserResource extends JsonResource
             'nama' => $this->nama,
             'email' => $this->email,
             'alamat' => $this->alamat,
-            'foto_profil' => $this->foto_profil,
+            'foto_profil' => $this->getPhotoUrl(),
             'actual_poin' => $this->actual_poin,
             'poin_tercatat' => $this->poin_tercatat,
             'total_setor_sampah' => $this->total_setor_sampah,
@@ -30,5 +30,23 @@ class UserResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    /**
+     * Get the full URL for the profile photo
+     */
+    private function getPhotoUrl(): ?string
+    {
+        if (empty($this->foto_profil)) {
+            return null;
+        }
+
+        // If it's already a full URL (Cloudinary), return as-is
+        if (str_starts_with($this->foto_profil, 'http://') || str_starts_with($this->foto_profil, 'https://')) {
+            return $this->foto_profil;
+        }
+
+        // Otherwise, it's a local storage path - convert to full URL
+        return asset('storage/' . $this->foto_profil);
     }
 }
