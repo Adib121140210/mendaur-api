@@ -57,6 +57,7 @@ class AuthController extends Controller
                     'nama' => $user->nama,
                     'email' => $user->email,
                     'no_hp' => $user->no_hp,
+                    'foto_profil' => $this->getPhotoUrl($user->foto_profil),
                     'actual_poin' => $user->actual_poin,
                     'level' => $user->level,
                     'role_id' => $user->role_id,
@@ -66,6 +67,24 @@ class AuthController extends Controller
                 'token' => $token,
             ],
         ], 200);
+    }
+
+    /**
+     * Get full URL for profile photo
+     */
+    private function getPhotoUrl(?string $fotoProfil): ?string
+    {
+        if (empty($fotoProfil)) {
+            return null;
+        }
+
+        // If already a full URL (Cloudinary), return as-is
+        if (str_starts_with($fotoProfil, 'http://') || str_starts_with($fotoProfil, 'https://')) {
+            return $fotoProfil;
+        }
+
+        // Otherwise, it's local storage path
+        return asset('storage/' . $fotoProfil);
     }
 
     /**
