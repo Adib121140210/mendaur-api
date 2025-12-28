@@ -66,15 +66,90 @@ class UserController extends Controller
             ], 403);
         }
 
-        $request->validate([
-            'foto_profil' => 'required|image|mimes:jpeg,jpg,png,gif|max:2048',
-        ]);
+        // Log upload attempt for debugging camera issues
+        if ($request->hasFile('foto_profil')) {
+            $file = $request->file('foto_profil');
+            \Log::info('Profile photo upload attempt', [
+                'user_id' => $id,
+                'file_size_bytes' => $file->getSize(),
+                'file_size_mb' => round($file->getSize() / 1024 / 1024, 2) . ' MB',
+                'file_type' => $file->getMimeType(),
+                'file_extension' => $file->getClientOriginalExtension(),
+                'guessed_extension' => $file->guessExtension(),
+                'original_name' => $file->getClientOriginalName(),
+                'is_valid' => $file->isValid(),
+                'error' => $file->getError(),
+            ]);
+        }
+
+        // Validate file with more lenient check for camera photos
+        if (!$request->hasFile('foto_profil')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Foto profil harus diupload',
+            ], 422);
+        }
+
+        $file = $request->file('foto_profil');
+        
+        // Check if file is valid
+        if (!$file->isValid()) {
+            $errorMessage = $this->getUploadErrorMessage($file->getError());
+            \Log::error('Invalid profile photo upload', [
+                'error_code' => $file->getError(),
+                'error_message' => $errorMessage,
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'File upload gagal: ' . $errorMessage,
+            ], 422);
+        }
+
+        // Check file size (max 2MB for profile photos)
+        if ($file->getSize() > 2 * 1024 * 1024) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Ukuran file maksimal 2MB',
+            ], 422);
+        }
+
+        // More lenient MIME type check for camera photos
+        $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/octet-stream'];
+        $mimeType = $file->getMimeType();
+        
+        // If MIME is octet-stream, try to detect from extension
+        if ($mimeType === 'application/octet-stream') {
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                \Log::info('Camera profile photo detected with octet-stream mime, allowing based on extension', [
+                    'extension' => $extension
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Format file harus JPG, JPEG, PNG, atau GIF',
+                ], 422);
+            }
+        } elseif (!in_array($mimeType, $allowedMimes)) {
+            // Additional check: verify it's actually an image by reading file header
+            $imageInfo = @getimagesize($file->getRealPath());
+            if ($imageInfo === false) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Format file harus berupa gambar (JPG, JPEG, PNG, atau GIF)',
+                ], 422);
+            }
+            \Log::info('Profile photo passed getimagesize check despite MIME mismatch', [
+                'detected_mime' => $mimeType,
+                'image_type' => $imageInfo[2] ?? 'unknown',
+            ]);
+        }
 
         $user = User::findOrFail($id);
         $cloudinaryService = new CloudinaryService();
 
         // Upload to Cloudinary
-        $uploadResult = $cloudinaryService->uploadImage($request->file('foto_profil'), 'profiles');
+        $uploadResult = $cloudinaryService->uploadImage($file, 'profiles');
         
         if (!$uploadResult['success']) {
             return response()->json([
@@ -99,6 +174,23 @@ class UserController extends Controller
             'message' => 'Photo updated successfully',
             'data' => new UserResource($user),
         ]);
+    }
+
+    /**
+     * Get human-readable upload error message
+     */
+    private function getUploadErrorMessage($errorCode)
+    {
+        $errors = [
+            UPLOAD_ERR_INI_SIZE => 'File terlalu besar (melebihi limit server)',
+            UPLOAD_ERR_FORM_SIZE => 'File terlalu besar (melebihi limit form)',
+            UPLOAD_ERR_PARTIAL => 'File hanya terupload sebagian',
+            UPLOAD_ERR_NO_FILE => 'Tidak ada file yang diupload',
+            UPLOAD_ERR_NO_TMP_DIR => 'Server error: temporary folder tidak ditemukan',
+            UPLOAD_ERR_CANT_WRITE => 'Server error: gagal menulis file',
+            UPLOAD_ERR_EXTENSION => 'Upload dihentikan oleh extension',
+        ];
+        return $errors[$errorCode] ?? 'Unknown upload error';
     }
 
     /**

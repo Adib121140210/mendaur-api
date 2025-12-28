@@ -42,33 +42,109 @@ class TabungSampahController extends Controller
                 'file_size_bytes' => $file->getSize(),
                 'file_size_mb' => round($file->getSize() / 1024 / 1024, 2) . ' MB',
                 'file_type' => $file->getMimeType(),
+                'file_extension' => $file->getClientOriginalExtension(),
+                'guessed_extension' => $file->guessExtension(),
                 'original_name' => $file->getClientOriginalName(),
                 'is_valid' => $file->isValid(),
                 'error' => $file->getError(),
+                'real_path' => $file->getRealPath(),
             ]);
         }
 
-        $validated = $request->validate([
+        // Custom validation - more lenient for camera photos
+        $rules = [
             'user_id' => 'required|exists:users,user_id',
             'jadwal_penyetoran_id' => 'required|exists:jadwal_penyetorans,jadwal_penyetoran_id',
             'nama_lengkap' => 'required|string',
             'no_hp' => 'required|string',
             'titik_lokasi' => 'required|string',
             'jenis_sampah' => 'required|string',
-            'foto_sampah' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:10240', // 10MB max (was 2MB)
-        ]);
+        ];
+
+        // Validate file manually with more lenient check for camera photos
+        if ($request->hasFile('foto_sampah')) {
+            $file = $request->file('foto_sampah');
+            
+            // Check if file is valid
+            if (!$file->isValid()) {
+                \Log::error('Invalid file upload', [
+                    'error_code' => $file->getError(),
+                    'error_message' => $this->getUploadErrorMessage($file->getError()),
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'File upload gagal: ' . $this->getUploadErrorMessage($file->getError()),
+                ], 422);
+            }
+
+            // Check file size (max 10MB)
+            if ($file->getSize() > 10 * 1024 * 1024) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Ukuran file maksimal 10MB',
+                ], 422);
+            }
+
+            // More lenient MIME type check for camera photos
+            $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/octet-stream'];
+            $mimeType = $file->getMimeType();
+            
+            // If MIME is octet-stream, try to detect from extension
+            if ($mimeType === 'application/octet-stream') {
+                $extension = strtolower($file->getClientOriginalExtension());
+                if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    \Log::info('Camera photo detected with octet-stream mime, allowing based on extension', [
+                        'extension' => $extension
+                    ]);
+                } else {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Format file harus JPG, JPEG, PNG, atau GIF',
+                    ], 422);
+                }
+            } elseif (!in_array($mimeType, $allowedMimes)) {
+                // Additional check: verify it's actually an image by reading file header
+                $imageInfo = @getimagesize($file->getRealPath());
+                if ($imageInfo === false) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Format file harus berupa gambar (JPG, JPEG, PNG, atau GIF)',
+                    ], 422);
+                }
+                \Log::info('File passed getimagesize check despite MIME mismatch', [
+                    'detected_mime' => $mimeType,
+                    'image_type' => $imageInfo[2] ?? 'unknown',
+                ]);
+            }
+        }
+
+        $validated = $request->validate($rules);
 
         // Handle file upload
         if ($request->hasFile('foto_sampah')) {
             $file = $request->file('foto_sampah');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('uploads/sampah', $filename, 'public');
-            $validated['foto_sampah'] = $path;
             
-            \Log::info('Image uploaded successfully - TabungSampah store', [
-                'user_id' => $request->user_id,
-                'stored_path' => $path,
-            ]);
+            // Generate safe filename
+            $extension = $file->getClientOriginalExtension() ?: ($file->guessExtension() ?: 'jpg');
+            $filename = time() . '_' . uniqid() . '.' . $extension;
+            
+            try {
+                $path = $file->storeAs('uploads/sampah', $filename, 'public');
+                $validated['foto_sampah'] = $path;
+
+                \Log::info('Image uploaded successfully - TabungSampah store', [
+                    'user_id' => $request->user_id,
+                    'stored_path' => $path,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to store image', [
+                    'error' => $e->getMessage(),
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Gagal menyimpan foto: ' . $e->getMessage(),
+                ], 500);
+            }
         }
 
         $data = TabungSampah::create($validated);
@@ -100,31 +176,107 @@ class TabungSampahController extends Controller
                 'file_size_bytes' => $file->getSize(),
                 'file_size_mb' => round($file->getSize() / 1024 / 1024, 2) . ' MB',
                 'file_type' => $file->getMimeType(),
+                'file_extension' => $file->getClientOriginalExtension(),
+                'guessed_extension' => $file->guessExtension(),
                 'original_name' => $file->getClientOriginalName(),
                 'is_valid' => $file->isValid(),
                 'error' => $file->getError(),
+                'real_path' => $file->getRealPath(),
             ]);
         }
 
-        $validated = $request->validate([
+        // Custom validation - more lenient for camera photos
+        $rules = [
             'nama_lengkap' => 'nullable|string',
             'no_hp' => 'nullable|string',
             'titik_lokasi' => 'nullable|string',
             'jenis_sampah' => 'nullable|string',
-            'foto_sampah' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:10240', // 10MB max (was 2MB)
-        ]);
+        ];
+
+        // Validate file manually with more lenient check for camera photos
+        if ($request->hasFile('foto_sampah')) {
+            $file = $request->file('foto_sampah');
+            
+            // Check if file is valid
+            if (!$file->isValid()) {
+                \Log::error('Invalid file upload - update', [
+                    'error_code' => $file->getError(),
+                    'error_message' => $this->getUploadErrorMessage($file->getError()),
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'File upload gagal: ' . $this->getUploadErrorMessage($file->getError()),
+                ], 422);
+            }
+
+            // Check file size (max 10MB)
+            if ($file->getSize() > 10 * 1024 * 1024) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Ukuran file maksimal 10MB',
+                ], 422);
+            }
+
+            // More lenient MIME type check for camera photos
+            $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/octet-stream'];
+            $mimeType = $file->getMimeType();
+            
+            // If MIME is octet-stream, try to detect from extension
+            if ($mimeType === 'application/octet-stream') {
+                $extension = strtolower($file->getClientOriginalExtension());
+                if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    \Log::info('Camera photo detected with octet-stream mime, allowing based on extension', [
+                        'extension' => $extension
+                    ]);
+                } else {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Format file harus JPG, JPEG, PNG, atau GIF',
+                    ], 422);
+                }
+            } elseif (!in_array($mimeType, $allowedMimes)) {
+                // Additional check: verify it's actually an image by reading file header
+                $imageInfo = @getimagesize($file->getRealPath());
+                if ($imageInfo === false) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Format file harus berupa gambar (JPG, JPEG, PNG, atau GIF)',
+                    ], 422);
+                }
+                \Log::info('File passed getimagesize check despite MIME mismatch', [
+                    'detected_mime' => $mimeType,
+                    'image_type' => $imageInfo[2] ?? 'unknown',
+                ]);
+            }
+        }
+
+        $validated = $request->validate($rules);
 
         // Handle file upload
         if ($request->hasFile('foto_sampah')) {
             $file = $request->file('foto_sampah');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('uploads/sampah', $filename, 'public');
-            $validated['foto_sampah'] = $path;
             
-            \Log::info('Image uploaded successfully - TabungSampah update', [
-                'tabung_sampah_id' => $tabungSampah->tabung_sampah_id ?? $tabungSampah->id,
-                'stored_path' => $path,
-            ]);
+            // Generate safe filename
+            $extension = $file->getClientOriginalExtension() ?: ($file->guessExtension() ?: 'jpg');
+            $filename = time() . '_' . uniqid() . '.' . $extension;
+            
+            try {
+                $path = $file->storeAs('uploads/sampah', $filename, 'public');
+                $validated['foto_sampah'] = $path;
+
+                \Log::info('Image uploaded successfully - TabungSampah update', [
+                    'tabung_sampah_id' => $tabungSampah->tabung_sampah_id ?? $tabungSampah->id,
+                    'stored_path' => $path,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to store image - update', [
+                    'error' => $e->getMessage(),
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Gagal menyimpan foto: ' . $e->getMessage(),
+                ], 500);
+            }
         }
 
         $tabungSampah->update($validated);
@@ -272,5 +424,22 @@ class TabungSampahController extends Controller
             'message' => 'Penyetoran ditolak',
             'data' => new TabungSampahResource($tabungSampah),
         ]);
+    }
+
+    /**
+     * Get human-readable upload error message
+     */
+    private function getUploadErrorMessage($errorCode)
+    {
+        $errors = [
+            UPLOAD_ERR_INI_SIZE => 'File terlalu besar (melebihi limit server)',
+            UPLOAD_ERR_FORM_SIZE => 'File terlalu besar (melebihi limit form)',
+            UPLOAD_ERR_PARTIAL => 'File hanya terupload sebagian',
+            UPLOAD_ERR_NO_FILE => 'Tidak ada file yang diupload',
+            UPLOAD_ERR_NO_TMP_DIR => 'Server error: temporary folder tidak ditemukan',
+            UPLOAD_ERR_CANT_WRITE => 'Server error: gagal menulis file',
+            UPLOAD_ERR_EXTENSION => 'Upload dihentikan oleh extension',
+        ];
+        return $errors[$errorCode] ?? 'Unknown upload error';
     }
 }

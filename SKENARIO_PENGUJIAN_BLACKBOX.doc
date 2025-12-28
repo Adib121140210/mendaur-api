@@ -1,0 +1,656 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<title>Skenario Pengujian Blackbox - Mendaur Bank Sampah</title>
+<style>
+    body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; margin: 2cm; }
+    h1 { font-size: 16pt; text-align: center; margin-bottom: 20pt; }
+    h2 { font-size: 14pt; margin-top: 20pt; margin-bottom: 10pt; background-color: #e0e0e0; padding: 5pt; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20pt; }
+    th, td { border: 1px solid black; padding: 8px; text-align: left; vertical-align: top; }
+    th { background-color: #4472C4; color: white; font-weight: bold; text-align: center; }
+    .valid { background-color: #C6EFCE; text-align: center; }
+    .invalid { background-color: #FFC7CE; text-align: center; }
+    .pending { background-color: #FFEB9C; text-align: center; }
+    .center { text-align: center; }
+    .header-info { margin-bottom: 20pt; }
+    .footer { margin-top: 30pt; font-size: 10pt; color: #666; }
+</style>
+</head>
+<body>
+
+<h1>SKENARIO PENGUJIAN BLACKBOX<br/>APLIKASI MENDAUR BANK SAMPAH</h1>
+
+<div class="header-info">
+<p><strong>Nama Proyek:</strong> Mendaur Bank Sampah API</p>
+<p><strong>Versi:</strong> 1.0.2</p>
+<p><strong>Tanggal:</strong> 28 Desember 2025</p>
+<p><strong>Penguji:</strong> ____________________</p>
+<p><strong>Catatan:</strong> Dokumen ini berisi 50 test case inti yang mencakup semua fitur utama aplikasi</p>
+</div>
+
+<!-- ==================== MODUL 1: AUTENTIKASI ==================== -->
+<h2>1. MODUL AUTENTIKASI</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-01</td>
+    <td>Login</td>
+    <td>Login dengan email dan password valid</td>
+    <td>Sistem menampilkan pesan "Login berhasil" dan redirect ke halaman dashboard</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-02</td>
+    <td>Login</td>
+    <td>Login dengan email/password salah</td>
+    <td>Sistem menampilkan pesan error "Email atau password salah"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-03</td>
+    <td>Register</td>
+    <td>Registrasi dengan data lengkap dan valid</td>
+    <td>Sistem membuat akun baru dan menampilkan pesan "Registrasi berhasil"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-04</td>
+    <td>Register</td>
+    <td>Registrasi dengan email yang sudah terdaftar</td>
+    <td>Sistem menampilkan pesan error "Email sudah terdaftar"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-05</td>
+    <td>Forgot Password</td>
+    <td>Request OTP dengan email terdaftar</td>
+    <td>Sistem mengirim OTP ke email dan menampilkan pesan "Kode OTP telah dikirim"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-06</td>
+    <td>Verify OTP</td>
+    <td>Verifikasi dengan OTP benar</td>
+    <td>Sistem memvalidasi OTP dan redirect ke form reset password</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-07</td>
+    <td>Reset Password</td>
+    <td>Reset password dengan password baru valid</td>
+    <td>Sistem mengubah password dan menampilkan pesan "Password berhasil diubah"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 2: PROFIL PENGGUNA ==================== -->
+<h2>2. MODUL PROFIL PENGGUNA</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-08</td>
+    <td>Profile</td>
+    <td>Melihat dan update profil pengguna</td>
+    <td>Sistem menampilkan dan dapat mengubah data profil (nama, email, no HP)</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-09</td>
+    <td>Profile</td>
+    <td>Upload foto profil dengan format valid (JPG/PNG)</td>
+    <td>Sistem mengupload foto ke Cloudinary dan menampilkan foto baru</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-10</td>
+    <td>Profile</td>
+    <td>Upload foto profil dengan ukuran > 2MB</td>
+    <td>Sistem menampilkan pesan error "Ukuran file maksimal 2MB"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-11</td>
+    <td>Profile</td>
+    <td>Melihat badge yang dimiliki dan set badge title</td>
+    <td>Sistem menampilkan list badge dan dapat mengubah badge title</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 3: SETOR SAMPAH ==================== -->
+<h2>3. MODUL SETOR SAMPAH</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-12</td>
+    <td>Setor Sampah</td>
+    <td>Melihat daftar jadwal penyetoran</td>
+    <td>Sistem menampilkan list jadwal penyetoran yang tersedia</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-13</td>
+    <td>Setor Sampah</td>
+    <td>Membuat penyetoran sampah dengan data lengkap</td>
+    <td>Sistem menyimpan data dan menampilkan pesan "Setor sampah berhasil!"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-14</td>
+    <td>Setor Sampah</td>
+    <td>Upload foto sampah dari kamera smartphone (~3-4MB)</td>
+    <td>Sistem berhasil mengupload foto tanpa error</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-15</td>
+    <td>Setor Sampah</td>
+    <td>Melihat riwayat penyetoran sampah</td>
+    <td>Sistem menampilkan list penyetoran sampah oleh user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-16</td>
+    <td>Setor Sampah</td>
+    <td>Filter riwayat penyetoran by status</td>
+    <td>Sistem menampilkan data sesuai filter status (pending/approved/rejected)</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 4: PENUKARAN PRODUK ==================== -->
+<h2>4. MODUL PENUKARAN PRODUK</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-17</td>
+    <td>Katalog Produk</td>
+    <td>Melihat daftar produk yang tersedia</td>
+    <td>Sistem menampilkan list produk dengan harga poin</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-18</td>
+    <td>Penukaran Produk</td>
+    <td>Tukar produk dengan poin mencukupi</td>
+    <td>Sistem mengurangi poin dan membuat record penukaran</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-19</td>
+    <td>Penukaran Produk</td>
+    <td>Tukar produk dengan poin tidak mencukupi</td>
+    <td>Sistem menampilkan pesan error "Poin tidak mencukupi"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-20</td>
+    <td>Penukaran Produk</td>
+    <td>Melihat riwayat penukaran</td>
+    <td>Sistem menampilkan list penukaran produk oleh user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 5: PENARIKAN TUNAI ==================== -->
+<h2>5. MODUL PENARIKAN TUNAI</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-21</td>
+    <td>Penarikan Tunai</td>
+    <td>Ajukan penarikan dengan poin mencukupi (min 2000)</td>
+    <td>Sistem membuat pengajuan dan menampilkan pesan sukses</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-22</td>
+    <td>Penarikan Tunai</td>
+    <td>Ajukan penarikan dengan poin kurang dari minimum</td>
+    <td>Sistem menampilkan pesan error "Minimum penarikan 2000 poin"</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-23</td>
+    <td>Penarikan Tunai</td>
+    <td>Verifikasi konversi poin ke rupiah (100 poin = Rp 1.000)</td>
+    <td>Sistem menghitung dengan benar: 2000 poin = Rp 20.000</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-24</td>
+    <td>Penarikan Tunai</td>
+    <td>Melihat riwayat penarikan tunai</td>
+    <td>Sistem menampilkan list pengajuan penarikan oleh user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 6: BADGE & GAMIFIKASI ==================== -->
+<h2>6. MODUL BADGE & GAMIFIKASI</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-25</td>
+    <td>Badge</td>
+    <td>Melihat daftar semua badge dan progress</td>
+    <td>Sistem menampilkan list semua badge dan progress pencapaian</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-26</td>
+    <td>Badge</td>
+    <td>Auto-unlock badge ketika memenuhi syarat</td>
+    <td>Sistem otomatis memberikan badge ketika syarat terpenuhi</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-27</td>
+    <td>Leaderboard</td>
+    <td>Melihat leaderboard poin</td>
+    <td>Sistem menampilkan ranking user berdasarkan poin</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-28</td>
+    <td>Level</td>
+    <td>Upgrade level otomatis (bronze > silver > gold)</td>
+    <td>Sistem otomatis update level ketika poin mencapai threshold</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 7: NOTIFIKASI ==================== -->
+<h2>7. MODUL NOTIFIKASI</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-29</td>
+    <td>Notifikasi</td>
+    <td>Melihat daftar notifikasi dan badge count unread</td>
+    <td>Sistem menampilkan list notifikasi dan jumlah notifikasi belum dibaca</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-30</td>
+    <td>Notifikasi</td>
+    <td>Tandai notifikasi sudah dibaca</td>
+    <td>Sistem mengubah status notifikasi menjadi read</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-31</td>
+    <td>Notifikasi</td>
+    <td>Notifikasi otomatis saat penyetoran di-approve</td>
+    <td>User menerima notifikasi ketika penyetoran disetujui</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 8: DASHBOARD USER ==================== -->
+<h2>8. MODUL DASHBOARD USER</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-32</td>
+    <td>Dashboard</td>
+    <td>Melihat overview dashboard user</td>
+    <td>Sistem menampilkan total poin, level, total sampah, riwayat poin, ranking, dan badge</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 9: ARTIKEL ==================== -->
+<h2>9. MODUL ARTIKEL</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-33</td>
+    <td>Artikel</td>
+    <td>Melihat daftar dan detail artikel</td>
+    <td>Sistem menampilkan list artikel dan dapat membuka detail artikel</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 10: ADMIN - PENYETORAN SAMPAH ==================== -->
+<h2>10. MODUL ADMIN - PENYETORAN SAMPAH</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-34</td>
+    <td>Admin Penyetoran</td>
+    <td>Melihat daftar semua penyetoran dan filter by status</td>
+    <td>Sistem menampilkan list semua penyetoran dengan filter status</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-35</td>
+    <td>Admin Penyetoran</td>
+    <td>Approve penyetoran dengan input berat dan poin</td>
+    <td>Sistem mengubah status menjadi approved dan menambah poin user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-36</td>
+    <td>Admin Penyetoran</td>
+    <td>Reject penyetoran dengan alasan</td>
+    <td>Sistem mengubah status menjadi rejected dengan catatan alasan</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-37</td>
+    <td>Admin Penyetoran</td>
+    <td>Melihat statistik penyetoran</td>
+    <td>Sistem menampilkan total, approved, rejected, pending count</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 11: ADMIN - PENUKARAN PRODUK ==================== -->
+<h2>11. MODUL ADMIN - PENUKARAN PRODUK</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-38</td>
+    <td>Admin Penukaran</td>
+    <td>Melihat daftar semua penukaran produk</td>
+    <td>Sistem menampilkan list semua penukaran dari semua user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-39</td>
+    <td>Admin Penukaran</td>
+    <td>Approve penukaran produk</td>
+    <td>Sistem mengubah status menjadi approved</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-40</td>
+    <td>Admin Penukaran</td>
+    <td>Reject penukaran dan kembalikan poin</td>
+    <td>Sistem mengubah status menjadi rejected dan mengembalikan poin user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 12: ADMIN - PENARIKAN TUNAI ==================== -->
+<h2>12. MODUL ADMIN - PENARIKAN TUNAI</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-41</td>
+    <td>Admin Penarikan</td>
+    <td>Melihat daftar semua pengajuan penarikan</td>
+    <td>Sistem menampilkan list pengajuan dari semua user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-42</td>
+    <td>Admin Penarikan</td>
+    <td>Approve penarikan tunai</td>
+    <td>Sistem mengubah status menjadi approved</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-43</td>
+    <td>Admin Penarikan</td>
+    <td>Reject penarikan dan kembalikan poin</td>
+    <td>Sistem mengubah status menjadi rejected dan mengembalikan poin user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 13: ADMIN - USER MANAGEMENT ==================== -->
+<h2>13. MODUL ADMIN - USER MANAGEMENT</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-44</td>
+    <td>Admin Users</td>
+    <td>Melihat dan mencari user</td>
+    <td>Sistem menampilkan list user dengan fitur pencarian</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-45</td>
+    <td>Admin Users</td>
+    <td>Melihat detail user</td>
+    <td>Sistem menampilkan detail lengkap user (profil, poin, aktivitas)</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-46</td>
+    <td>Admin Users</td>
+    <td>Update status dan role user</td>
+    <td>Sistem mengubah status (aktif/nonaktif) dan role user</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 14: ADMIN - DASHBOARD ==================== -->
+<h2>14. MODUL ADMIN - DASHBOARD</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-47</td>
+    <td>Admin Dashboard</td>
+    <td>Melihat overview statistik sistem</td>
+    <td>Sistem menampilkan total users, penyetoran, poin, grafik, dan summary</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== MODUL 15: ADMIN - CONTENT MANAGEMENT ==================== -->
+<h2>15. MODUL ADMIN - CONTENT MANAGEMENT</h2>
+
+<table>
+<tr>
+    <th style="width:5%">BT</th>
+    <th style="width:12%">Nama Pages</th>
+    <th style="width:20%">Fitur</th>
+    <th style="width:28%">Ekspektasi</th>
+    <th style="width:28%">Keadaan Sebenarnya</th>
+    <th style="width:7%">Valid</th>
+</tr>
+<tr>
+    <td class="center">BT-48</td>
+    <td>Admin Produk</td>
+    <td>CRUD produk (Create, Read, Update, Delete)</td>
+    <td>Sistem dapat menambah, melihat, mengubah, dan menghapus produk</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-49</td>
+    <td>Admin Artikel</td>
+    <td>CRUD artikel (Create, Read, Update, Delete)</td>
+    <td>Sistem dapat menambah, melihat, mengubah, dan menghapus artikel</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+<tr>
+    <td class="center">BT-50</td>
+    <td>Admin Jadwal</td>
+    <td>CRUD jadwal penyetoran (Create, Read, Update, Delete)</td>
+    <td>Sistem dapat menambah, melihat, mengubah, dan menghapus jadwal</td>
+    <td></td>
+    <td class="pending"></td>
+</tr>
+</table>
+
+<!-- ==================== FOOTER ==================== -->
+<div class="footer">
+<p><strong>Keterangan Kolom Valid:</strong></p>
+<ul>
+    <li><span style="background-color: #C6EFCE; padding: 2px 8px;">✓ Valid</span> - Hasil sesuai dengan ekspektasi</li>
+    <li><span style="background-color: #FFC7CE; padding: 2px 8px;">✗ Invalid</span> - Hasil tidak sesuai dengan ekspektasi</li>
+    <li><span style="background-color: #FFEB9C; padding: 2px 8px;">Pending</span> - Belum diuji</li>
+</ul>
+
+<p><strong>Total Test Cases:</strong> 50</p>
+<p><strong>Dokumen dibuat:</strong> 28 Desember 2025</p>
+</div>
+
+</body>
+</html>
