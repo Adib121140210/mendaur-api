@@ -5,6 +5,20 @@ set -e
 
 echo "Starting Mendaur API deployment..."
 
+# Configure PHP settings for larger file uploads
+echo "Configuring PHP settings..."
+export PHP_INI_SCAN_DIR="/app"
+
+# Create php.ini override if needed
+mkdir -p /tmp/php-conf
+cat > /tmp/php-conf/uploads.ini << 'EOF'
+upload_max_filesize = 10M
+post_max_size = 12M
+max_execution_time = 60
+max_input_time = 60
+memory_limit = 256M
+EOF
+
 # Copy .env from example if not exists
 if [ ! -f .env ]; then
     echo "Creating .env from .env.example..."
@@ -59,6 +73,6 @@ echo "Caching configurations..."
 php artisan config:cache
 php artisan route:cache
 
-# Start the server
+# Start the server with custom PHP settings
 echo "Starting Laravel server on port $PORT..."
-exec php artisan serve --host=0.0.0.0 --port=$PORT
+exec php -d upload_max_filesize=10M -d post_max_size=12M -d max_execution_time=60 -d memory_limit=256M artisan serve --host=0.0.0.0 --port=$PORT

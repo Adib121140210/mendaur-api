@@ -34,6 +34,20 @@ class TabungSampahController extends Controller
     // Create new tabung sampah
     public function store(Request $request)
     {
+        // Log upload attempt for debugging
+        if ($request->hasFile('foto_sampah')) {
+            $file = $request->file('foto_sampah');
+            \Log::info('Image upload attempt - TabungSampah store', [
+                'user_id' => $request->user_id,
+                'file_size_bytes' => $file->getSize(),
+                'file_size_mb' => round($file->getSize() / 1024 / 1024, 2) . ' MB',
+                'file_type' => $file->getMimeType(),
+                'original_name' => $file->getClientOriginalName(),
+                'is_valid' => $file->isValid(),
+                'error' => $file->getError(),
+            ]);
+        }
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,user_id',
             'jadwal_penyetoran_id' => 'required|exists:jadwal_penyetorans,jadwal_penyetoran_id',
@@ -41,7 +55,7 @@ class TabungSampahController extends Controller
             'no_hp' => 'required|string',
             'titik_lokasi' => 'required|string',
             'jenis_sampah' => 'required|string',
-            'foto_sampah' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+            'foto_sampah' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:10240', // 10MB max (was 2MB)
         ]);
 
         // Handle file upload
@@ -50,6 +64,11 @@ class TabungSampahController extends Controller
             $filename = time() . '_' . $file->getClientOriginalName();
             $path = $file->storeAs('uploads/sampah', $filename, 'public');
             $validated['foto_sampah'] = $path;
+            
+            \Log::info('Image uploaded successfully - TabungSampah store', [
+                'user_id' => $request->user_id,
+                'stored_path' => $path,
+            ]);
         }
 
         $data = TabungSampah::create($validated);
@@ -73,12 +92,26 @@ class TabungSampahController extends Controller
     // Update tabung sampah
     public function update(Request $request, TabungSampah $tabungSampah)
     {
+        // Log upload attempt for debugging
+        if ($request->hasFile('foto_sampah')) {
+            $file = $request->file('foto_sampah');
+            \Log::info('Image upload attempt - TabungSampah update', [
+                'tabung_sampah_id' => $tabungSampah->tabung_sampah_id ?? $tabungSampah->id,
+                'file_size_bytes' => $file->getSize(),
+                'file_size_mb' => round($file->getSize() / 1024 / 1024, 2) . ' MB',
+                'file_type' => $file->getMimeType(),
+                'original_name' => $file->getClientOriginalName(),
+                'is_valid' => $file->isValid(),
+                'error' => $file->getError(),
+            ]);
+        }
+
         $validated = $request->validate([
             'nama_lengkap' => 'nullable|string',
             'no_hp' => 'nullable|string',
             'titik_lokasi' => 'nullable|string',
             'jenis_sampah' => 'nullable|string',
-            'foto_sampah' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+            'foto_sampah' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:10240', // 10MB max (was 2MB)
         ]);
 
         // Handle file upload
@@ -87,6 +120,11 @@ class TabungSampahController extends Controller
             $filename = time() . '_' . $file->getClientOriginalName();
             $path = $file->storeAs('uploads/sampah', $filename, 'public');
             $validated['foto_sampah'] = $path;
+            
+            \Log::info('Image uploaded successfully - TabungSampah update', [
+                'tabung_sampah_id' => $tabungSampah->tabung_sampah_id ?? $tabungSampah->id,
+                'stored_path' => $path,
+            ]);
         }
 
         $tabungSampah->update($validated);
