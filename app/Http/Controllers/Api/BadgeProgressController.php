@@ -37,7 +37,7 @@ class BadgeProgressController extends Controller
                     'user' => [
                         'id' => $user->id,
                         'nama' => $user->nama,
-                        'total_poin' => $user->total_poin,
+                        'poin_tercatat' => $user->poin_tercatat,
                         'total_setor' => $user->total_setor_sampah,
                     ],
                     'summary' => $summary,

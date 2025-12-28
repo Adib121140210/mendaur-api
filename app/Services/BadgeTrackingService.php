@@ -68,11 +68,11 @@ class BadgeTrackingService
     {
         switch ($badge->tipe) {
             case 'poin':
-                return $user->total_poin ?? 0;
+                return $user->poin_tercatat ?? 0;
             case 'setor':
                 return $user->total_setor_sampah ?? 0;
             case 'kombinasi':
-                $poinPercent = ($user->total_poin ?? 0) / max(1, $badge->syarat_poin);
+                $poinPercent = ($user->poin_tercatat ?? 0) / max(1, $badge->syarat_poin);
                 $setorPercent = ($user->total_setor_sampah ?? 0) / max(1, $badge->syarat_setor);
                 return min($poinPercent, $setorPercent) * 100;
             case 'special':
@@ -124,7 +124,7 @@ class BadgeTrackingService
 
     /**
      * Unlock badge - DUAL-NASABAH AWARE
-     * Konvensional: reward → total_poin (usable)
+     * Konvensional: reward → actual_poin (usable)
      * Modern: reward → poin_tercatat (non-usable)
      */
     private function unlockBadge(User $user, Badge $badge, BadgeProgress $progress)
@@ -145,7 +145,8 @@ class BadgeTrackingService
             $poinType = 'none';
             if ($badge->reward_poin > 0) {
                 if ($user->isNasabahKonvensional()) {
-                    $user->increment('total_poin', $badge->reward_poin);
+                    $user->increment('actual_poin', $badge->reward_poin);
+                    $user->increment('display_poin', $badge->reward_poin);
                     $poinType = 'usable';
                 } else {
                     $user->increment('poin_tercatat', $badge->reward_poin);
@@ -272,7 +273,7 @@ class BadgeTrackingService
     private function calculateRankingProgress(Badge $badge, User $user)
     {
         $userRank = User::query()
-            ->where('total_poin', '>', $user->total_poin)
+            ->where('display_poin', '>', $user->display_poin)
             ->count() + 1;
 
         if ($userRank <= 10) {

@@ -358,7 +358,7 @@ class TabungSampahController extends Controller
                 'user_id' => $user->user_id,
                 'total_poin_awarded' => $pointCalculation['total'],
                 'breakdown' => $pointCalculation['breakdown'],
-                'new_total_poin' => $user->fresh()->total_poin,
+                'new_actual_poin' => $user->fresh()->actual_poin,
             ]);
 
             // Log the waste deposit activity

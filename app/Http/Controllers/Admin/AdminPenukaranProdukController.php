@@ -137,7 +137,7 @@ class AdminPenukaranProdukController extends Controller
                     'id' => $exchange->user->user_id ?? null,
                     'email' => $exchange->user->email ?? null,
                     'nama' => $exchange->user->nama ?? null,
-                    'poin_saat_ini' => (int) ($exchange->user->total_poin ?? 0),
+                    'poin_saat_ini' => (int) ($exchange->user->actual_poin ?? 0),
                 ],
                 'product_id' => $exchange->produk_id,
                 'product' => [
@@ -322,7 +322,8 @@ class AdminPenukaranProdukController extends Controller
             $oldData = $exchange->toArray();
 
             $user = $exchange->user;
-            $user->increment('total_poin', $exchange->poin_digunakan);
+            $user->increment('actual_poin', $exchange->poin_digunakan);
+            $user->increment('display_poin', $exchange->poin_digunakan);
 
             PoinTransaksi::create([
                 'user_id' => $exchange->user_id,

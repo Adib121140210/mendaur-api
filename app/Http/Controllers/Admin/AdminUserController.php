@@ -238,7 +238,8 @@ class AdminUserController extends Controller
                     'level' => (int) $user->level,
                     'status' => $user->status,
                     'tipe_nasabah' => $user->tipe_nasabah,
-                    'total_poin' => (int) $user->total_poin,
+                    'actual_poin' => (int) $user->actual_poin,
+                    'display_poin' => (int) $user->display_poin,
                     'total_setor_sampah' => (float) $user->total_setor_sampah,
                     'foto_profil' => $user->foto_profil,
                     'joinDate' => $user->created_at->toIso8601String(),
@@ -402,7 +403,8 @@ class AdminUserController extends Controller
                     'role_id' => (int) $user->role_id,
                     'status' => $user->status,
                     'tipe_nasabah' => $user->tipe_nasabah,
-                    'total_poin' => (int) $user->total_poin,
+                    'actual_poin' => (int) $user->actual_poin,
+                    'display_poin' => (int) $user->display_poin,
                     'updated_at' => $user->updated_at->toIso8601String(),
                 ]
             ], 200);

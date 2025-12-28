@@ -277,7 +277,8 @@ class AdminPenarikanTunaiController extends Controller
             DB::beginTransaction();
             try {
                 // CRITICAL: Refund points to user
-                $withdrawal->user->increment('total_poin', $withdrawal->jumlah_poin);
+                $withdrawal->user->increment('actual_poin', $withdrawal->jumlah_poin);
+                $withdrawal->user->increment('display_poin', $withdrawal->jumlah_poin);
 
                 // CRITICAL: Record point refund transaction
                 PoinTransaksi::create([

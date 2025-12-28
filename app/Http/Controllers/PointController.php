@@ -34,7 +34,8 @@ class PointController extends Controller
                     'user' => [
                         'user_id' => $user->user_id,
                         'nama' => $user->nama,
-                        'total_poin' => $user->total_poin,
+                        'actual_poin' => $user->actual_poin,
+                        'display_poin' => $user->display_poin,
                         'level' => $user->level ?? 'Bronze',
                     ],
                     'recent_transactions' => PoinTransaksiResource::collection($recentTransactions),
@@ -207,7 +208,7 @@ class PointController extends Controller
             $user = User::findOrFail($userId);
 
             $breakdown = [
-                'current_balance' => $user->total_poin,
+                'current_balance' => $user->actual_poin,
                 'earned_from' => [
                     'deposits' => (int) PoinTransaksi::where('user_id', $userId)
                         ->where('sumber', 'setor_sampah')
@@ -289,7 +290,7 @@ class PointController extends Controller
                     'transaction_id' => $transaction->id,
                     'user_id' => $user->user_id,
                     'points_awarded' => $validated['points'],
-                    'new_balance' => $user->fresh()->total_poin,
+                    'new_balance' => $user->fresh()->actual_poin,
                 ],
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {

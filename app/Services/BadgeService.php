@@ -56,13 +56,13 @@ class BadgeService
     {
         switch ($badge->tipe) {
             case 'poin':
-                return $user->total_poin >= $badge->syarat_poin;
+                return $user->poin_tercatat >= $badge->syarat_poin;
 
             case 'setor':
                 return $user->total_setor_sampah >= $badge->syarat_setor;
 
             case 'kombinasi':
-                return ($user->total_poin >= $badge->syarat_poin)
+                return ($user->poin_tercatat >= $badge->syarat_poin)
                     && ($user->total_setor_sampah >= $badge->syarat_setor);
 
             case 'special':
@@ -78,13 +78,13 @@ class BadgeService
      * Award badge to user and give bonus points (DUAL-NASABAH AWARE)
      *
      * Rules:
-     * - Konvensional: Gets badge + reward_poin added to total_poin (usable)
+     * - Konvensional: Gets badge + reward_poin added to actual_poin (usable)
      * - Modern: Gets badge + reward_poin added to poin_tercatat (non-usable)
      *
      * This ensures:
      * - Modern nasabah CANNOT use reward points for withdrawal/redemption
      * - Modern nasabah STILL gets prestige of badge unlock
-     * - Both types counted fairly in leaderboard (via poin_tercatat)
+     * - Both types counted fairly in leaderboard (via display_poin)
      */
     private function awardBadge(User $user, Badge $badge): void
     {
@@ -102,8 +102,9 @@ class BadgeService
             // 2. Give bonus points (reward) based on nasabah type
             if ($badge->reward_poin > 0) {
                 if ($user->isNasabahKonvensional()) {
-                    // Konvensional: reward goes to total_poin (usable for withdrawal/redemption)
-                    $user->increment('total_poin', $badge->reward_poin);
+                    // Konvensional: reward goes to actual_poin (usable for withdrawal/redemption)
+                    $user->increment('actual_poin', $badge->reward_poin);
+                    $user->increment('display_poin', $badge->reward_poin);
 
                     $notificationMessage = "Selamat! Kamu mendapatkan badge '{$badge->nama}' dan bonus {$badge->reward_poin} poin yang bisa digunakan!";
                 } else {
@@ -159,7 +160,7 @@ class BadgeService
 
             if (!$unlocked) {
                 if ($badge->syarat_poin > 0) {
-                    $progress = min(100, ($user->total_poin / $badge->syarat_poin) * 100);
+                    $progress = min(100, ($user->poin_tercatat / $badge->syarat_poin) * 100);
                 } elseif ($badge->syarat_setor > 0) {
                     $progress = min(100, ($user->total_setor_sampah / $badge->syarat_setor) * 100);
                 }

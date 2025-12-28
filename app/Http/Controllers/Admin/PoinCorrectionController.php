@@ -78,7 +78,7 @@ class PoinCorrectionController extends Controller
                 ], 403);
             }
 
-            $oldPoin = $targetUser->total_poin;
+            $oldPoin = $targetUser->actual_poin;
             $newPoin = $validated['new_poin'];
 
             if ($oldPoin === $newPoin) {
@@ -110,8 +110,11 @@ class PoinCorrectionController extends Controller
                     notes: $validated['notes'] ?? null
                 );
 
-                // Update user's poin
-                $targetUser->update(['total_poin' => $newPoin]);
+                // Update user's poin (both actual and display for consistency)
+                $targetUser->update([
+                    'actual_poin' => $newPoin,
+                    'display_poin' => $newPoin,
+                ]);
 
                 // Log in audit_logs table as well
                 $type = $validated['type'] ?? 'correction';
