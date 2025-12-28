@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\TabungSampah;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\TabungSampahResource;
+use App\Services\CloudinaryService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -70,15 +71,28 @@ class UserController extends Controller
         ]);
 
         $user = User::findOrFail($id);
+        $cloudinaryService = new CloudinaryService();
 
-        // Delete old photo if exists
-        if ($user->foto_profil) {
-            Storage::disk('public')->delete($user->foto_profil);
+        // Upload to Cloudinary
+        $uploadResult = $cloudinaryService->uploadImage($request->file('foto_profil'), 'profiles');
+        
+        if (!$uploadResult['success']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to upload image: ' . $uploadResult['error']
+            ], 500);
         }
 
-        // Store new photo
-        $path = $request->file('foto_profil')->store('uploads/profiles', 'public');
-        $user->update(['foto_profil' => $path]);
+        // Delete old photo from Cloudinary if exists
+        if ($user->foto_profil_public_id) {
+            $cloudinaryService->deleteImage($user->foto_profil_public_id);
+        }
+
+        // Update user with new photo URL and public_id
+        $user->update([
+            'foto_profil' => $uploadResult['url'],
+            'foto_profil_public_id' => $uploadResult['public_id']
+        ]);
 
         return response()->json([
             'status' => 'success',
