@@ -220,9 +220,10 @@ class AdminPenukaranProdukController extends Controller
 
             $exchange->update($updateData);
 
-            // Deduct points from user
+            // Deduct points from user (use actual_poin for balance)
             $user = $exchange->user;
-            $user->decrement('total_poin', $exchange->poin_digunakan);
+            $user->decrement('actual_poin', $exchange->poin_digunakan);
+            $user->decrement('display_poin', $exchange->poin_digunakan);
 
             // Deduct stock
             $product->decrement('stok', $exchange->jumlah);

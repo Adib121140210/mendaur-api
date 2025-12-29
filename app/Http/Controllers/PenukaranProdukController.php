@@ -400,10 +400,11 @@ class PenukaranProdukController extends Controller
             }
 
             $query = PenukaranProduk::select([
-                    'penukaran_produk_id', 'user_id', 'produk_id', 
-                    'jumlah', 'total_poin', 'status', 'created_at', 'updated_at'
+                    'penukaran_produk_id', 'user_id', 'produk_id',
+                    'jumlah', 'poin_digunakan', 'status', 'metode_ambil',
+                    'catatan', 'tanggal_diambil', 'created_at', 'updated_at'
                 ])
-                ->with(['produk:produk_id,nama_produk,harga_poin,gambar'])
+                ->with(['produk:produk_id,nama,harga_poin,foto,deskripsi'])
                 ->where('user_id', $userId)
                 ->orderBy('created_at', 'desc');
 

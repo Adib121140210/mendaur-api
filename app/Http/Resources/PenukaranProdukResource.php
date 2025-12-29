@@ -15,12 +15,13 @@ class PenukaranProdukResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->penukaran_produk_id,
             'produk' => [
-                'id' => $this->produk?->id,
-                'nama' => $this->produk?->nama,
+                'id' => $this->produk?->produk_id,
+                'nama' => $this->produk?->nama ?? $this->nama_produk,
                 'deskripsi' => $this->produk?->deskripsi,
                 'foto' => $this->produk?->foto,
+                'harga_poin' => $this->produk?->harga_poin,
             ],
             'poin_digunakan' => $this->poin_digunakan,
             'jumlah' => $this->jumlah,
@@ -28,10 +29,10 @@ class PenukaranProdukResource extends JsonResource
             'metode_label' => $this->metode_ambil === 'pickup' ? 'Ambil di Lokasi' : 'Pengiriman',
             'status' => $this->status,
             'status_label' => $this->getStatusLabel(),
-            'tanggal_penukaran' => $this->created_at->format('Y-m-d'),
-            'tanggal_diambil' => $this->tanggal_diambil ? $this->tanggal_diambil->format('Y-m-d') : null,
+            'tanggal_penukaran' => $this->created_at?->format('Y-m-d'),
+            'tanggal_diambil' => $this->tanggal_diambil?->format('Y-m-d'),
             'catatan_admin' => $this->catatan,
-            'created_at' => $this->created_at->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 

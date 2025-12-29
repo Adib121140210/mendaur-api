@@ -23,6 +23,7 @@ class UserResource extends JsonResource
             'alamat' => $this->alamat,
             'foto_profil' => $this->getPhotoUrl(),
             'actual_poin' => $this->actual_poin,
+            'display_poin' => $this->display_poin,  // For leaderboard display
             'poin_tercatat' => $this->poin_tercatat,
             'total_setor_sampah' => $this->total_setor_sampah,
             'level' => $this->level,
