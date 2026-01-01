@@ -22,12 +22,10 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'alamat' => $this->alamat,
             'foto_profil' => $this->getPhotoUrl(),
-            'actual_poin' => $this->actual_poin,
-            'display_poin' => $this->display_poin,  // For leaderboard display
-            'poin_tercatat' => $this->poin_tercatat,
+            'actual_poin' => $this->actual_poin ?? 0,
+            'display_poin' => $this->display_poin ?? 0,  // For leaderboard display
             'total_setor_sampah' => $this->total_setor_sampah,
             'level' => $this->level,
-            'tipe_nasabah' => $this->tipe_nasabah,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

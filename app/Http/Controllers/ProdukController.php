@@ -72,9 +72,9 @@ class ProdukController extends Controller
         if ($request->hasFile('foto')) {
             $file = $request->file('foto');
             $cloudinaryService = new CloudinaryService();
-            
+
             $uploadResult = $cloudinaryService->uploadImage($file, 'produk');
-            
+
             if ($uploadResult['success']) {
                 $validated['foto'] = $uploadResult['url'];
                 $validated['foto_public_id'] = $uploadResult['public_id'];
@@ -135,14 +135,14 @@ class ProdukController extends Controller
         if ($request->hasFile('foto')) {
             $file = $request->file('foto');
             $cloudinaryService = new CloudinaryService();
-            
+
             // Delete old photo from Cloudinary if exists
             if ($produk->foto_public_id) {
                 $cloudinaryService->deleteImage($produk->foto_public_id);
             }
-            
+
             $uploadResult = $cloudinaryService->uploadImage($file, 'produk');
-            
+
             if ($uploadResult['success']) {
                 $validated['foto'] = $uploadResult['url'];
                 $validated['foto_public_id'] = $uploadResult['public_id'];

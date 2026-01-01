@@ -185,23 +185,20 @@ class User extends Authenticatable
 
     /**
      * Cek apakah nasabah tipe modern (bisa withdrawal)
+     * NOTE: Pembatasan modern/konvensional sementara dinonaktifkan
      */
     public function isModernNasabah(): bool
     {
-        return $this->tipe_nasabah === 'modern';
+        return true; // Semua nasabah dianggap modern untuk saat ini
     }
 
     /**
      * Dapatkan poin yang bisa digunakan untuk transaksi
-     * Nasabah modern menggunakan actual_poin
-     * Nasabah konvensional tidak bisa transaksi poin
+     * NOTE: Semua nasabah bisa menggunakan actual_poin
      */
     public function getUsablePoin(): int
     {
-        if ($this->tipe_nasabah === 'modern') {
-            return $this->actual_poin ?? 0;
-        }
-        return 0;
+        return $this->actual_poin ?? 0;
     }
 
     /**

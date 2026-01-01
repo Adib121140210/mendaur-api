@@ -82,9 +82,9 @@ class ArtikelController extends Controller
         if ($request->hasFile('foto_cover')) {
             $file = $request->file('foto_cover');
             $cloudinaryService = new CloudinaryService();
-            
+
             $uploadResult = $cloudinaryService->uploadImage($file, 'artikel');
-            
+
             if ($uploadResult['success']) {
                 $validated['foto_cover'] = $uploadResult['url'];
                 $validated['foto_cover_public_id'] = $uploadResult['public_id'];

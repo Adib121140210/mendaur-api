@@ -43,8 +43,8 @@ class PenarikanTunaiController extends Controller
         // Get authenticated user from token
         $user = $request->user();
 
-        // Use actual available poin from transactions
-        $availablePoin = $user->getUsablePoin();
+        // Use actual_poin for validation (semua nasabah bisa withdraw)
+        $availablePoin = $user->actual_poin ?? 0;
 
         if ($availablePoin < $validated['jumlah_poin']) {
             return response()->json([
