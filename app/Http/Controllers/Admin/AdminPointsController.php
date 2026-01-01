@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\PoinTransaksi;
+use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -14,41 +15,53 @@ class AdminPointsController extends Controller
     /**
      * Award points to user manually
      * POST /api/admin/points/award
+     *
+     * CATATAN SKEMA POIN:
+     * - earnPoints() akan menambah KEDUA: actual_poin DAN display_poin
+     * - actual_poin: Saldo yang bisa dipakai (naik saat dapat poin)
+     * - display_poin: Poin untuk leaderboard (naik saat dapat poin, TIDAK PERNAH turun)
      */
     public function award(Request $request)
     {
         try {
             $request->validate([
-                'userId' => 'required|exists:users,id',
+                'userId' => 'required|exists:users,user_id',
                 'points' => 'required|integer|min:1',
                 'reason' => 'required|string|max:255',
                 'category' => 'required|in:manual,bonus,promotion'
             ]);
 
-            // Check if poin_transaksis table exists
-            $hasPoinTable = DB::select("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?",
-                [DB::connection()->getDatabaseName(), 'poin_transaksis']);
+            $user = User::where('user_id', $request->userId)->first();
 
-            if (!empty($hasPoinTable)) {
-                // Create transaction record
-                DB::table('poin_transaksis')->insert([
-                    'user_id' => $request->userId,
-                    'jenis_poin' => $request->category,
-                    'poin_didapat' => $request->points,
-                    'keterangan' => $request->reason,
-                    'status' => 'selesai',
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'User not found'
+                ], 404);
             }
+
+            // Use PointService to properly award points
+            // This will update both actual_poin and display_poin
+            PointService::earnPoints(
+                $user,
+                $request->points,
+                $request->category . '_admin',
+                $request->reason,
+                null,
+                'AdminAward'
+            );
+
+            // Refresh user to get updated poin values
+            $user->refresh();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Points awarded successfully',
                 'data' => [
-                    'userId' => (int) $request->userId,
+                    'userId' => (int) $user->user_id,
                     'pointsAdded' => (int) $request->points,
-                    'currentBalance' => (int) $request->points,
+                    'currentBalance' => (int) $user->actual_poin,
+                    'displayPoin' => (int) $user->display_poin,
                     'timestamp' => Carbon::now()->toIso8601String(),
                 ]
             ], 200);

@@ -8,6 +8,7 @@ use App\Models\TabungSampah;
 use App\Models\User;
 use App\Models\AuditLog;
 use App\Models\LogAktivitas;
+use App\Services\PointService;
 use Illuminate\Database\Eloquent\Builder;
 
 class AdminWasteController extends Controller
@@ -200,10 +201,19 @@ class AdminWasteController extends Controller
                 'poin_didapat' => $request->poin_diberikan,
             ]);
 
-            // Add poin to user (actual_poin for transactions, display_poin for leaderboard)
-            $user->increment('actual_poin', $request->poin_diberikan);
-            $user->increment('display_poin', $request->poin_diberikan);
-            $user->increment('poin_tercatat', $request->poin_diberikan);
+            // Add poin to user using PointService
+            // CATATAN SKEMA POIN:
+            // - earnPoints() akan menambah KEDUA: actual_poin DAN display_poin
+            // - actual_poin: Saldo yang bisa dipakai untuk transaksi
+            // - display_poin: Poin untuk leaderboard (tidak pernah berkurang)
+            PointService::earnPoints(
+                $user,
+                $request->poin_diberikan,
+                'admin_approve_deposit',
+                'Poin dari persetujuan penyetoran sampah oleh admin',
+                $deposit->tabung_sampah_id,
+                'TabungSampah'
+            );
 
             // Log action in audit_logs
             AuditLog::create([

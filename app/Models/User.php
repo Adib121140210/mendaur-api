@@ -2,58 +2,64 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * Model User - Tabel users
+ *
+ * Menyimpan data pengguna aplikasi (nasabah, admin, superadmin)
+ */
 class User extends Authenticatable
 {
     protected $primaryKey = 'user_id';
     public $incrementing = true;
     protected $keyType = 'int';
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+
     use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
+     * Kolom yang dapat diisi secara mass assignment
      */
     protected $fillable = [
-        'nama',
-        'email',
-        'password',
-        'no_hp',
-        'alamat',
-        'foto_profil',
-        'foto_profil_public_id', // Cloudinary public_id for deletion
-        'display_poin',      // For leaderboard ranking (can be reset)
-        'actual_poin',       // For transactions/withdrawals (calculated from poin_transaksis)
-        'total_setor_sampah',
-        'level',
-        'role_id',
-        'status',
-        'tipe_nasabah',
-        'poin_tercatat',
-        'nama_bank',
-        'nomor_rekening',
-        'atas_nama_rekening',
-        'badge_title_id', // Selected badge to display as user title
+        // === DATA PRIBADI ===
+        'nama',                    // Nama lengkap pengguna
+        'email',                   // Email untuk login (unique)
+        'password',                // Password terenkripsi
+        'no_hp',                   // Nomor handphone
+        'alamat',                  // Alamat lengkap pengguna
+
+        // === FOTO PROFIL ===
+        'foto_profil',             // URL foto profil di Cloudinary
+        'foto_profil_public_id',   // Public ID Cloudinary untuk hapus/update foto
+
+        // === SISTEM POIN (DUAL-POINT SYSTEM) ===
+        'display_poin',            // Poin untuk LEADERBOARD/ranking (tidak berkurang saat transaksi)
+        'actual_poin',             // Poin SALDO untuk transaksi (penukaran produk, withdrawal)
+
+        // === STATISTIK ===
+        'total_setor_sampah',      // Total kg sampah yang sudah disetor (approved)
+
+        // === ROLE & STATUS ===
+        'level',                   // Level user: 1=nasabah, 2=admin, 3=superadmin
+        'role_id',                 // Foreign key ke tabel roles
+        'status',                  // Status akun: active, suspended, inactive
+        'tipe_nasabah',            // Tipe: 'konvensional' atau 'modern'
+
+        // === DATA BANK (untuk withdrawal - hanya nasabah modern) ===
+        'nama_bank',               // Nama bank (BCA, BNI, Mandiri, dll)
+        'nomor_rekening',          // Nomor rekening bank
+        'atas_nama_rekening',      // Nama pemilik rekening
+
+        // === BADGE ===
+        'badge_title_id',          // Badge yang dipilih sebagai title/gelar
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
+     * Kolom yang disembunyikan dari JSON response
      */
     protected $hidden = [
         'password',
@@ -61,9 +67,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @return array<string, string>
+     * Casting tipe data
      */
     protected function casts(): array
     {
@@ -72,24 +76,27 @@ class User extends Authenticatable
             'deleted_at' => 'datetime',
             'password' => 'hashed',
             'tipe_nasabah' => 'string',
+            'display_poin' => 'integer',
+            'actual_poin' => 'integer',
+            'total_setor_sampah' => 'decimal:2',
         ];
     }
 
     /**
-     * Default attribute values
-     * NOTE: nama_bank NOT set here - only Modern users should have banking info
+     * Nilai default untuk kolom
      */
     protected $attributes = [
         'tipe_nasabah' => 'konvensional',
-        'display_poin' => 0,     // For leaderboard display
-        'actual_poin' => 0,      // Will be calculated from poin_transaksis
-        'poin_tercatat' => 0,
+        'display_poin' => 0,
+        'actual_poin' => 0,
         'total_setor_sampah' => 0,
+        'status' => 'active',
     ];
 
-    /**
-     * Relationships
-     */
+    // ==========================================
+    // RELATIONSHIPS
+    // ==========================================
+
     public function role()
     {
         return $this->belongsTo(Role::class, 'role_id', 'role_id');
@@ -102,23 +109,28 @@ class User extends Authenticatable
 
     public function tabungSampahs()
     {
-        return $this->hasMany(TabungSampah::class);
+        return $this->hasMany(TabungSampah::class, 'user_id', 'user_id');
     }
 
     public function penukaranProduk()
     {
-        return $this->hasMany(PenukaranProduk::class);
+        return $this->hasMany(PenukaranProduk::class, 'user_id', 'user_id');
     }
 
-    public function transaksis()
+    public function penarikanTunai()
     {
-        return $this->hasMany(Transaksi::class);
+        return $this->hasMany(PenarikanTunai::class, 'user_id', 'user_id');
+    }
+
+    public function poinTransaksis()
+    {
+        return $this->hasMany(PoinTransaksi::class, 'user_id', 'user_id');
     }
 
     public function badges()
     {
         return $this->belongsToMany(
-            \App\Models\Badge::class,
+            Badge::class,
             'user_badges',
             'user_id',
             'badge_id'
@@ -127,311 +139,76 @@ class User extends Authenticatable
 
     public function userBadges()
     {
-        return $this->hasMany(\App\Models\UserBadge::class, 'user_id', 'user_id');
+        return $this->hasMany(UserBadge::class, 'user_id', 'user_id');
     }
 
-    /**
-     * Get the selected badge title for the user
-     */
     public function badgeTitle()
     {
-        return $this->belongsTo(\App\Models\Badge::class, 'badge_title_id', 'badge_id');
-    }
-
-    public function notifikasis()
-    {
-        return $this->hasMany(Notifikasi::class);
-    }
-
-    public function logAktivitas()
-    {
-        return $this->hasMany(\App\Models\LogAktivitas::class);
+        return $this->belongsTo(Badge::class, 'badge_title_id', 'badge_id');
     }
 
     public function badgeProgress()
     {
-        return $this->hasMany(\App\Models\BadgeProgress::class);
+        return $this->hasMany(BadgeProgress::class, 'user_id', 'user_id');
     }
 
-    public function getBadgeProgressFor(Badge $badge)
+    public function notifikasis()
     {
-        return $this->badgeProgress()
-            ->where('badge_id', $badge->id)
-            ->first();
+        return $this->hasMany(Notifikasi::class, 'user_id', 'user_id');
     }
 
-    public function penarikanTunai()
+    public function logAktivitas()
     {
-        return $this->hasMany(\App\Models\PenarikanTunai::class);
+        return $this->hasMany(LogAktivitas::class, 'user_id', 'user_id');
     }
 
-    public function poinTransaksis()
+    // ==========================================
+    // HELPER METHODS
+    // ==========================================
+
+    /**
+     * Cek apakah user adalah admin atau superadmin
+     */
+    public function isAdminUser(): bool
     {
-        return $this->hasMany(\App\Models\PoinTransaksi::class, 'user_id', 'user_id');
+        return in_array($this->level, [2, 3]) ||
+               in_array($this->role?->nama_role, ['admin', 'superadmin']);
     }
 
     /**
-     * Accessor for legacy 'id' usage
-     * Maps to the primary key 'user_id'
+     * Cek apakah user adalah superadmin
      */
-    public function getIdAttribute()
+    public function isSuperAdmin(): bool
     {
-        return $this->user_id;
+        return $this->level === 3 || $this->role?->nama_role === 'superadmin';
     }
 
     /**
-     * Check if user is admin
-     * Assuming 'level' field: 'admin' for admin users, 'user' for regular users
+     * Cek apakah nasabah tipe modern (bisa withdrawal)
      */
-    public function isAdmin()
-    {
-        return $this->level === 'admin';
-    }
-
-    /**
-     * Check if user has a specific role
-     */
-    public function hasRole(string $roleName): bool
-    {
-        if (!$this->role) {
-            return false;
-        }
-        return $this->role->nama_role === $roleName;
-    }
-
-    /**
-     * Check if user has any of the given roles
-     */
-    public function hasAnyRole(...$roleNames): bool
-    {
-        if (!$this->role) {
-            return false;
-        }
-        return in_array($this->role->nama_role, $roleNames);
-    }
-
-    /**
-     * Check if user has a specific permission (via role)
-     */
-    public function hasPermission(string $permissionCode): bool
-    {
-        if (!$this->role) {
-            return false;
-        }
-
-        // Get all inherited permissions for user's role
-        $permissions = $this->role->getInheritedPermissions();
-        return $permissions->contains('permission_code', $permissionCode);
-    }
-
-    /**
-     * Check if user has all given permissions
-     */
-    public function hasAllPermissions(...$permissionCodes): bool
-    {
-        foreach ($permissionCodes as $code) {
-            if (!$this->hasPermission($code)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Check if user has any of the given permissions
-     */
-    public function hasAnyPermission(...$permissionCodes): bool
-    {
-        foreach ($permissionCodes as $code) {
-            if ($this->hasPermission($code)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Get all inherited permissions for this user's role
-     */
-    public function getAllPermissions()
-    {
-        if (!$this->role) {
-            return collect();
-        }
-        return $this->role->getInheritedPermissions();
-    }
-
-    /**
-     * Check if this user is konvensional nasabah
-     */
-    public function isNasabahKonvensional(): bool
-    {
-        return $this->tipe_nasabah === 'konvensional';
-    }
-
-    /**
-     * Check if this user is modern nasabah
-     */
-    public function isNasabahModern(): bool
+    public function isModernNasabah(): bool
     {
         return $this->tipe_nasabah === 'modern';
     }
 
     /**
-     * Get displayed poin based on nasabah type
-     * - Konvensional: shows actual_poin (calculated from transactions)
-     * - Modern: shows 0 (poin not directly usable for features)
-     */
-    public function getDisplayedPoin(): int
-    {
-        if ($this->isNasabahModern()) {
-            return 0; // Modern nasabah cannot use poin for features
-        }
-        return (int)$this->actual_poin;
-    }
-
-    /**
-     * Get actual usable poin balance
-     * - Konvensional: actual_poin (calculated from transactions)
-     * - Modern: always 0 (cannot use for features)
-     */
-    public function getActualPoinBalance(): int
-    {
-        if ($this->isNasabahModern()) {
-            return 0;
-        }
-        return (int)$this->actual_poin;
-    }
-
-    /**
-     * Get recorded poin (for audit trail and badges)
-     * Both nasabah types use this for badges/leaderboard
-     */
-    public function getRecordedPoin(): int
-    {
-        return (int)$this->poin_tercatat;
-    }
-
-    /**
-     * Check if user can use a specific poin feature
-     */
-    public function canUsePoinFeature(string $featureName): bool
-    {
-        // Modern nasabah cannot use poin features
-        if ($this->isNasabahModern()) {
-            return false;
-        }
-
-        // Konvensional nasabah can use if they have poin and permission
-        if ($this->actual_poin <= 0) {
-            return false;
-        }
-
-        // Check if user has permission for the feature
-        $permissionMap = [
-            'penarikan_tunai' => 'request_withdrawal',
-            'penukaran_produk' => 'redeem_poin',
-            'tabung_sampah' => 'deposit_sampah',
-        ];
-
-        if (!isset($permissionMap[$featureName])) {
-            return true; // Unknown feature, allow by default
-        }
-
-        return $this->hasPermission($permissionMap[$featureName]);
-    }
-
-    /**
-     * Increment recorded poin (tercatat) for audit trail
-     */
-    public function addPoinTercatat(int $amount, string $reason = ''): void
-    {
-        $this->increment('poin_tercatat', $amount);
-    }
-
-    /**
-     * Add usable poin only for konvensional nasabah
-     * This updates both display_poin (for leaderboard) and actual_poin (for transactions)
-     */
-    public function addUsablePoin(int $amount, string $reason = ''): void
-    {
-        if ($this->isNasabahKonvensional()) {
-            // Update both display_poin and actual_poin
-            $this->increment('display_poin', $amount);
-            $this->increment('actual_poin', $amount);
-        }
-    }
-
-    /**
-     * Check if user is nasabah (level 1)
-     */
-    public function isNasabah(): bool
-    {
-        return $this->role && $this->role->level_akses === 1;
-    }
-
-    /**
-     * Check if user is admin (level 2) or superadmin (level 3)
-     */
-    public function isAdminUser(): bool
-    {
-        return $this->role && ($this->role->level_akses === 2 || $this->role->level_akses === 3);
-    }
-
-    /**
-     * Check if user is superadmin (level 3)
-     */
-    public function isSuperAdmin(): bool
-    {
-        return $this->role && $this->role->level_akses === 3;
-    }
-
-    /**
-     * Check if user has admin privileges (admin or superadmin)
-     */
-    public function isStaff(): bool
-    {
-        return $this->isAdminUser() || $this->isSuperAdmin();
-    }
-
-    /**
-     * Get actual available poin from poin_transaksis table
-     * This is the real poin balance, regardless of display_poin field
-     */
-    public function getAvailablePoin(): int
-    {
-        return $this->poinTransaksis()->sum('poin_didapat') ?? 0;
-    }
-
-    /**
-     * Update actual_poin field based on poin_transaksis data
-     * This should be called when needed to sync the cache
-     */
-    public function updateActualPoin(): void
-    {
-        $this->actual_poin = $this->getAvailablePoin();
-        $this->save();
-    }
-
-    /**
-     * Get usable poin for konvensional nasabah
-     * Modern nasabah always returns 0 (cannot use poin for withdrawal/exchange)
+     * Dapatkan poin yang bisa digunakan untuk transaksi
+     * Nasabah modern menggunakan actual_poin
+     * Nasabah konvensional tidak bisa transaksi poin
      */
     public function getUsablePoin(): int
     {
-        if ($this->isNasabahModern()) {
-            return 0; // Modern nasabah cannot use poin
+        if ($this->tipe_nasabah === 'modern') {
+            return $this->actual_poin ?? 0;
         }
-
-        return $this->getAvailablePoin();
+        return 0;
     }
 
     /**
-     * Check if user has enough poin for transaction
+     * Accessor untuk backward compatibility
      */
-    public function hasEnoughPoin(int $requiredPoin): bool
+    public function getIdAttribute()
     {
-        return $this->getUsablePoin() >= $requiredPoin;
+        return $this->user_id;
     }
 }
-

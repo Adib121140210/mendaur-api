@@ -128,8 +128,8 @@ class AdminUserController extends Controller
             $validated['password'] = bcrypt($validated['password']);
             $validated['status'] = $validated['status'] ?? 'active';
             $validated['tipe_nasabah'] = $validated['tipe_nasabah'] ?? 'konvensional';
-            $validated['total_poin'] = 0;
-            $validated['poin_tercatat'] = 0;
+            $validated['actual_poin'] = 0;    // Poin yang bisa digunakan untuk transaksi
+            $validated['display_poin'] = 0;   // Poin untuk leaderboard (tidak pernah berkurang)
             $validated['total_setor_sampah'] = 0;
 
             // Determine level based on role

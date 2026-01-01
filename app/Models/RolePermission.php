@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model RolePermission - Tabel role_permissions
+ *
+ * Menyimpan permission/izin untuk setiap role
+ */
 class RolePermission extends Model
 {
     protected $primaryKey = 'role_permission_id';
@@ -13,9 +18,9 @@ class RolePermission extends Model
     use HasFactory;
 
     protected $fillable = [
-        'role_id',
-        'permission_code',
-        'deskripsi',
+        'role_id',         // ID role
+        'permission_code', // Kode permission: manage_users, approve_deposits, dll
+        'deskripsi',       // Deskripsi permission
     ];
 
     protected $casts = [

@@ -5,6 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * Model PoinTransaksi - Tabel poin_transaksis
+ *
+ * Mencatat semua transaksi poin (masuk dan keluar) - LEDGER POIN
+ * Ini adalah sumber kebenaran untuk kalkulasi actual_poin
+ */
 class PoinTransaksi extends Model
 {
     use HasFactory;
@@ -14,24 +20,35 @@ class PoinTransaksi extends Model
     public $incrementing = true;
     protected $keyType = 'int';
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
-        'user_id',
-        'tabung_sampah_id',
-        'jenis_sampah',
-        'berat_kg',
-        'poin_didapat',
-        'sumber',
-        'keterangan',
-        'referensi_id',
-        'referensi_tipe',
+        'user_id',          // ID user pemilik transaksi
+        'tabung_sampah_id', // ID tabung sampah (jika dari setor sampah)
+        'jenis_sampah',     // Jenis sampah (jika dari setor sampah)
+        'berat_kg',         // Berat kg (jika dari setor sampah)
+        'poin_didapat',     // Jumlah poin (+positif untuk masuk, -negatif untuk keluar)
+        'sumber',           // Sumber transaksi (lihat konstanta di bawah)
+        'keterangan',       // Deskripsi/catatan transaksi
+        'referensi_id',     // ID entitas terkait (produk_id, penarikan_id, dll)
+        'referensi_tipe',   // Tipe entitas terkait (PenukaranProduk, PenarikanTunai, dll)
     ];
 
     /**
-     * The attributes that should be cast.
+     * Nilai sumber transaksi yang valid:
+     *
+     * POSITIF (menambah poin):
+     * - 'setor_sampah'           : Poin dari setor sampah
+     * - 'bonus'                  : Bonus event/promo
+     * - 'badge_reward'           : Reward dari unlock badge
+     * - 'event'                  : Event khusus
+     * - 'manual'                 : Adjustment manual oleh admin
+     * - 'refund_penukaran'       : Refund dari cancel penukaran produk
+     * - 'pengembalian_penarikan' : Refund dari reject penarikan tunai
+     *
+     * NEGATIF (mengurangi poin):
+     * - 'penukaran_produk'       : Penukaran/redeem produk
+     * - 'penarikan_tunai'        : Penarikan tunai/withdrawal
      */
+
     protected $casts = [
         'berat_kg' => 'decimal:2',
         'poin_didapat' => 'integer',
@@ -39,156 +56,46 @@ class PoinTransaksi extends Model
         'updated_at' => 'datetime',
     ];
 
-    /**
-     * Relationships
-     */
+    // ==========================================
+    // RELATIONSHIPS
+    // ==========================================
 
-    /**
-     * Get the user that owns this transaction
-     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
-    /**
-     * Get the waste deposit associated with this transaction
-     */
     public function tabungSampah()
     {
-        return $this->belongsTo(TabungSampah::class);
+        return $this->belongsTo(TabungSampah::class, 'tabung_sampah_id', 'tabung_sampah_id');
     }
 
-    /**
-     * Query Scopes
-     */
+    // ==========================================
+    // SCOPES
+    // ==========================================
 
-    /**
-     * Filter transactions by source type
-     */
     public function scopeBySumber($query, $sumber)
     {
         return $query->where('sumber', $sumber);
     }
 
-    /**
-     * Filter deposit-related transactions
-     */
     public function scopeDeposits($query)
     {
         return $query->where('sumber', 'setor_sampah');
     }
 
-    /**
-     * Filter bonus transactions
-     */
     public function scopeBonuses($query)
     {
         return $query->where('sumber', 'bonus');
     }
 
-    /**
-     * Filter badge reward transactions
-     */
-    public function scopeBadgeRewards($query)
-    {
-        return $query->where('sumber', 'badge');
-    }
-
-    /**
-     * Filter redemption transactions (point deductions)
-     */
-    public function scopeRedemptions($query)
-    {
-        return $query->where('sumber', 'redemption');
-    }
-
-    /**
-     * Filter admin-issued transactions
-     */
-    public function scopeManual($query)
-    {
-        return $query->where('sumber', 'manual');
-    }
-
-    /**
-     * Get only positive point transactions
-     */
     public function scopePositive($query)
     {
         return $query->where('poin_didapat', '>', 0);
     }
 
-    /**
-     * Get only negative point transactions
-     */
     public function scopeNegative($query)
     {
         return $query->where('poin_didapat', '<', 0);
     }
-
-    /**
-     * Filter by date range
-     */
-    public function scopeDateRange($query, $startDate, $endDate)
-    {
-        return $query->whereBetween('created_at', [$startDate, $endDate]);
-    }
-
-    /**
-     * Accessors & Mutators
-     */
-
-    /**
-     * Get formatted date
-     */
-    public function getFormattedDateAttribute()
-    {
-        return $this->created_at->format('Y-m-d');
-    }
-
-    /**
-     * Get formatted date time
-     */
-    public function getFormattedDateTimeAttribute()
-    {
-        return $this->created_at->format('Y-m-d H:i:s');
-    }
-
-    /**
-     * Helper Methods
-     */
-
-    /**
-     * Check if transaction is a point gain
-     */
-    public function isGain(): bool
-    {
-        return $this->poin_didapat > 0;
-    }
-
-    /**
-     * Check if transaction is a point deduction
-     */
-    public function isDeduction(): bool
-    {
-        return $this->poin_didapat < 0;
-    }
-
-    /**
-     * Get human-readable source label
-     */
-    public function getSourceLabel(): string
-    {
-        $labels = [
-            'setor_sampah' => 'Penyetoran Sampah',
-            'bonus' => 'Bonus Poin',
-            'event' => 'Event Spesial',
-            'manual' => 'Poin Manual',
-            'badge' => 'Badge Reward',
-            'redemption' => 'Penukaran Produk',
-        ];
-
-        return $labels[$this->sumber] ?? $this->sumber;
-    }
-};
+}

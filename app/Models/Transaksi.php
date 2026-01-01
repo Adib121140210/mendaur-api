@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model Transaksi - Tabel transaksis
+ *
+ * [LEGACY] Tabel transaksi umum - gunakan PoinTransaksi untuk poin
+ */
 class Transaksi extends Model
 {
     use HasFactory;
@@ -15,10 +20,10 @@ class Transaksi extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',
-        'kategori_id',
-        'jumlah',
-        'deskripsi',
+        'user_id',     // ID pengguna
+        'kategori_id', // ID kategori transaksi
+        'jumlah',      // Jumlah/nominal
+        'deskripsi',   // Deskripsi transaksi
     ];
 
     // Relasi ke User

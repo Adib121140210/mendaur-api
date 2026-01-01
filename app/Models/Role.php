@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model Role - Tabel roles
+ *
+ * Menyimpan data role/peran pengguna dalam sistem
+ */
 class Role extends Model
 {
     protected $primaryKey = 'role_id';
@@ -13,9 +18,9 @@ class Role extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nama_role',
-        'level_akses',
-        'deskripsi',
+        'nama_role',    // Nama role: nasabah, admin, superadmin
+        'level_akses',  // Level akses: 1=nasabah, 2=admin, 3=superadmin
+        'deskripsi',    // Deskripsi role
     ];
 
     protected $casts = [

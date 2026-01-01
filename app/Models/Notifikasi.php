@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * Model Notifikasi - Tabel notifikasi
+ *
+ * Menyimpan notifikasi untuk pengguna
+ */
 class Notifikasi extends Model
 {
     use HasFactory;
@@ -15,13 +20,13 @@ class Notifikasi extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',
-        'judul',
-        'pesan',
-        'tipe',
-        'is_read',
-        'related_id',
-        'related_type'
+        'user_id',       // ID penerima notifikasi
+        'judul',         // Judul notifikasi
+        'pesan',         // Isi pesan notifikasi
+        'tipe',          // Tipe: info, success, warning, error
+        'is_read',       // Sudah dibaca atau belum
+        'related_id',    // ID entitas terkait (opsional)
+        'related_type',  // Tipe entitas terkait (opsional)
     ];
 
     protected $casts = [

@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * Model PenukaranProduk - Tabel penukaran_produk
+ *
+ * Menyimpan data penukaran/redeem produk menggunakan poin
+ */
 class PenukaranProduk extends Model
 {
     use HasFactory;
@@ -15,16 +20,16 @@ class PenukaranProduk extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',
-        'produk_id',
-        'nama_produk',
-        'poin_digunakan',
-        'jumlah',
-        'status',
-        'metode_ambil',
-        'catatan',
-        'tanggal_penukaran',
-        'tanggal_diambil',
+        'user_id',            // ID nasabah yang menukar
+        'produk_id',          // ID produk yang ditukar
+        'nama_produk',        // Nama produk (snapshot saat penukaran)
+        'poin_digunakan',     // Jumlah poin yang digunakan
+        'jumlah',             // Jumlah produk yang ditukar
+        'status',             // Status: pending, approved, cancelled, completed
+        'metode_ambil',       // Metode pengambilan: ambil_sendiri, dikirim
+        'catatan',            // Catatan dari nasabah/admin
+        'tanggal_penukaran',  // Tanggal request penukaran
+        'tanggal_diambil',    // Tanggal produk diambil/diterima
     ];
 
     protected $casts = [

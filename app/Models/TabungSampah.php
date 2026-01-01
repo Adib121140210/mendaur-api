@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model TabungSampah - Tabel tabung_sampah
+ *
+ * Menyimpan data penyetoran/pengumpulan sampah oleh nasabah
+ */
 class TabungSampah extends Model
 {
     use HasFactory;
@@ -15,16 +20,16 @@ class TabungSampah extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',
-        'jadwal_penyetoran_id',
-        'nama_lengkap',
-        'no_hp',
-        'titik_lokasi',
-        'jenis_sampah',
-        'foto_sampah',
-        'status',
-        'berat_kg',
-        'poin_didapat',
+        'user_id',              // ID nasabah yang menyetor
+        'jadwal_penyetoran_id', // ID jadwal penyetoran yang dipilih
+        'nama_lengkap',         // Nama lengkap penyetor
+        'no_hp',                // Nomor HP penyetor
+        'titik_lokasi',         // Lokasi penyetoran (koordinat/alamat)
+        'jenis_sampah',         // Jenis sampah: Plastik, Kertas, Logam, dll
+        'foto_sampah',          // URL foto sampah yang disetor
+        'status',               // Status: pending, approved, rejected
+        'berat_kg',             // Berat sampah dalam kilogram (diisi admin)
+        'poin_didapat',         // Poin yang diberikan (dihitung otomatis)
     ];
 
     protected $casts = [
@@ -34,15 +39,41 @@ class TabungSampah extends Model
         'updated_at' => 'datetime',
     ];
 
-    // Relasi ke User
+    // ==========================================
+    // RELATIONSHIPS
+    // ==========================================
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
-    // Relasi ke JadwalPenyetoran
     public function jadwal()
     {
-        return $this->belongsTo(JadwalPenyetoran::class, 'jadwal_penyetoran_id');
+        return $this->belongsTo(JadwalPenyetoran::class, 'jadwal_penyetoran_id', 'jadwal_penyetoran_id');
+    }
+
+    public function poinTransaksi()
+    {
+        return $this->hasOne(PoinTransaksi::class, 'tabung_sampah_id', 'tabung_sampah_id');
+    }
+
+    // ==========================================
+    // SCOPES
+    // ==========================================
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
     }
 }

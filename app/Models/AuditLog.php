@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model AuditLog - Tabel audit_logs
+ *
+ * Mencatat semua aksi admin untuk audit trail
+ */
 class AuditLog extends Model
 {
     protected $primaryKey = 'audit_log_id';
@@ -13,17 +18,17 @@ class AuditLog extends Model
     use HasFactory;
 
     protected $fillable = [
-        'admin_id',
-        'action_type',
-        'resource_type',
-        'resource_id',
-        'old_values',
-        'new_values',
-        'reason',
-        'ip_address',
-        'user_agent',
-        'status',
-        'error_message',
+        'admin_id',       // ID admin yang melakukan aksi
+        'action_type',    // Tipe aksi: create, update, delete, approve, reject
+        'resource_type',  // Tipe resource: TabungSampah, PenarikanTunai, dll
+        'resource_id',    // ID resource yang diubah
+        'old_values',     // Nilai sebelum perubahan (JSON)
+        'new_values',     // Nilai setelah perubahan (JSON)
+        'reason',         // Alasan melakukan aksi
+        'ip_address',     // IP address admin
+        'user_agent',     // Browser/device info
+        'status',         // Status: success, failed
+        'error_message',  // Pesan error jika gagal
     ];
 
     protected $casts = [

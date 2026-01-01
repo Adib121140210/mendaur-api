@@ -204,7 +204,8 @@ class AdminLeaderboardController extends Controller
                 'message' => 'Gagal mereset leaderboard: ' . $e->getMessage()
             ], 500);
         }
-    }    /**
+    }
+    /**
      * Get leaderboard history/seasons
      * GET /api/admin/leaderboard/history
      */

@@ -64,7 +64,7 @@ class TabungSampahController extends Controller
         // Validate file manually with more lenient check for camera photos
         if ($request->hasFile('foto_sampah')) {
             $file = $request->file('foto_sampah');
-            
+
             // Check if file is valid
             if (!$file->isValid()) {
                 \Log::error('Invalid file upload', [
@@ -88,7 +88,7 @@ class TabungSampahController extends Controller
             // More lenient MIME type check for camera photos
             $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/octet-stream'];
             $mimeType = $file->getMimeType();
-            
+
             // If MIME is octet-stream, try to detect from extension
             if ($mimeType === 'application/octet-stream') {
                 $extension = strtolower($file->getClientOriginalExtension());
@@ -123,11 +123,11 @@ class TabungSampahController extends Controller
         // Handle file upload
         if ($request->hasFile('foto_sampah')) {
             $file = $request->file('foto_sampah');
-            
+
             // Generate safe filename
             $extension = $file->getClientOriginalExtension() ?: ($file->guessExtension() ?: 'jpg');
             $filename = time() . '_' . uniqid() . '.' . $extension;
-            
+
             try {
                 $path = $file->storeAs('uploads/sampah', $filename, 'public');
                 $validated['foto_sampah'] = $path;
@@ -196,7 +196,7 @@ class TabungSampahController extends Controller
         // Validate file manually with more lenient check for camera photos
         if ($request->hasFile('foto_sampah')) {
             $file = $request->file('foto_sampah');
-            
+
             // Check if file is valid
             if (!$file->isValid()) {
                 \Log::error('Invalid file upload - update', [
@@ -220,7 +220,7 @@ class TabungSampahController extends Controller
             // More lenient MIME type check for camera photos
             $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/octet-stream'];
             $mimeType = $file->getMimeType();
-            
+
             // If MIME is octet-stream, try to detect from extension
             if ($mimeType === 'application/octet-stream') {
                 $extension = strtolower($file->getClientOriginalExtension());
@@ -255,11 +255,11 @@ class TabungSampahController extends Controller
         // Handle file upload
         if ($request->hasFile('foto_sampah')) {
             $file = $request->file('foto_sampah');
-            
+
             // Generate safe filename
             $extension = $file->getClientOriginalExtension() ?: ($file->guessExtension() ?: 'jpg');
             $filename = time() . '_' . uniqid() . '.' . $extension;
-            
+
             try {
                 $path = $file->storeAs('uploads/sampah', $filename, 'public');
                 $validated['foto_sampah'] = $path;

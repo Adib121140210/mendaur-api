@@ -18,9 +18,9 @@ class PenukaranProdukResource extends JsonResource
             'id' => $this->penukaran_produk_id,
             'produk' => [
                 'id' => $this->produk?->produk_id,
-                'nama' => $this->produk?->nama ?? $this->nama_produk,
+                'nama' => $this->produk?->nama_produk,
                 'deskripsi' => $this->produk?->deskripsi,
-                'foto' => $this->produk?->foto,
+                'foto' => $this->produk?->gambar,
                 'harga_poin' => $this->produk?->harga_poin,
             ],
             'poin_digunakan' => $this->poin_digunakan,

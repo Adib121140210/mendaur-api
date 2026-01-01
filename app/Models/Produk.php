@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model Produk - Tabel produks
+ *
+ * Menyimpan data produk yang bisa ditukar dengan poin
+ */
 class Produk extends Model
 {
     use HasFactory;
@@ -15,13 +20,13 @@ class Produk extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'nama',
-        'deskripsi',
-        'harga_poin',
-        'stok',
-        'kategori',
-        'foto',
-        'status',
+        'nama',        // Nama produk
+        'deskripsi',   // Deskripsi produk
+        'harga_poin',  // Harga dalam satuan poin
+        'stok',        // Jumlah stok tersedia
+        'kategori',    // Kategori produk
+        'foto',        // URL foto produk
+        'status',      // Status: tersedia, habis, nonaktif
     ];
 
     protected $casts = [

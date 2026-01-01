@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Produk;
 use App\Models\AuditLog;
 use App\Models\PoinTransaksi;
+use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -220,10 +221,16 @@ class AdminPenukaranProdukController extends Controller
 
             $exchange->update($updateData);
 
-            // Deduct points from user (use actual_poin for balance)
+            // Deduct points from user using PointService
+            // CATATAN: actual_poin berkurang, display_poin TIDAK berkurang
+            // Poin sudah di-hold saat user submit request, jadi kita hanya finalize
+            // Jika belum di-hold, gunakan PointService untuk deduct
             $user = $exchange->user;
-            $user->decrement('actual_poin', $exchange->poin_digunakan);
-            $user->decrement('display_poin', $exchange->poin_digunakan);
+
+            // Poin sudah dikurangi saat nasabah submit request di PenukaranProdukController
+            // Jadi di sini tidak perlu decrement lagi, cukup update status
+            // Tapi jika flow berbeda dan poin belum dikurangi:
+            // PointService::deductPointsForRedemption($user, $exchange->poin_digunakan, $exchange->penukaran_produk_id);
 
             // Deduct stock
             $product->decrement('stok', $exchange->jumlah);
@@ -322,18 +329,16 @@ class AdminPenukaranProdukController extends Controller
         try {
             $oldData = $exchange->toArray();
 
+            // Refund points using PointService
+            // CATATAN: actual_poin dikembalikan, display_poin TIDAK berubah
+            // karena display_poin tidak dikurangi saat penukaran
             $user = $exchange->user;
-            $user->increment('actual_poin', $exchange->poin_digunakan);
-            $user->increment('display_poin', $exchange->poin_digunakan);
-
-            PoinTransaksi::create([
-                'user_id' => $exchange->user_id,
-                'poin_didapat' => $exchange->poin_digunakan,
-                'sumber' => 'pengembalian_penukaran',
-                'keterangan' => 'Pengembalian poin dari penukaran produk yang ditolak',
-                'referensi_id' => $exchangeId,
-                'referensi_tipe' => 'PenukaranProduk'
-            ]);
+            PointService::refundRedemptionPoints(
+                $user,
+                $exchange->poin_digunakan,
+                $exchange->penukaran_produk_id,
+                "Pengembalian poin dari penukaran produk yang ditolak"
+            );
 
             $exchange->update([
                 'status' => 'cancelled',

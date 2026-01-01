@@ -6,18 +6,24 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 
+/**
+ * Model PasswordReset - Tabel password_resets
+ *
+ * Menyimpan token reset password dan OTP
+ */
 class PasswordReset extends Model
 {
     protected $table = 'password_resets';
+
     protected $fillable = [
-        'email',
-        'token',
-        'otp',
-        'otp_hash',  // NEW: For secure hashed OTP storage
-        'reset_token',
-        'expires_at',
-        'verified_at',
-        'created_at',
+        'email',        // Email user yang request reset
+        'token',        // Token reset password
+        'otp',          // OTP (6 digit) - plaintext untuk backward compat
+        'otp_hash',     // OTP yang di-hash untuk keamanan
+        'reset_token',  // Token untuk halaman reset password
+        'expires_at',   // Waktu expired
+        'verified_at',  // Waktu OTP diverifikasi
+        'created_at',   // Waktu dibuat
     ];
 
     protected $casts = [

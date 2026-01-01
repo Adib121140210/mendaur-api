@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model Artikel - Tabel artikels
+ *
+ * Menyimpan artikel/berita tentang daur ulang dan lingkungan
+ */
 class Artikel extends Model
 {
     use HasFactory;
@@ -15,14 +20,14 @@ class Artikel extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'judul',
-        'slug',
-        'konten',
-        'foto_cover',
-        'penulis',
-        'kategori',
-        'tanggal_publikasi',
-        'views',
+        'judul',              // Judul artikel
+        'slug',               // URL-friendly slug dari judul
+        'konten',             // Isi artikel dalam HTML/markdown
+        'foto_cover',         // URL foto cover artikel
+        'penulis',            // Nama penulis artikel
+        'kategori',           // Kategori: tips, berita, edukasi, dll
+        'tanggal_publikasi',  // Tanggal artikel dipublikasikan
+        'views',              // Jumlah view artikel
     ];
 
     protected $casts = [

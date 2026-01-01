@@ -14,12 +14,16 @@ class AdminPointController extends Controller
     /**
      * Get system-wide point statistics
      * GET /api/poin/admin/stats
+     *
+     * CATATAN SKEMA POIN:
+     * - display_poin: Total poin untuk leaderboard (tidak pernah berkurang)
+     * - actual_poin: Poin yang bisa digunakan untuk transaksi
      */
     public function getStats(Request $request)
     {
         try {
-            // Get total points in system
-            $totalPointsInSystem = User::sum('total_poin');
+            // Get total points in system (using display_poin for total accumulated)
+            $totalPointsInSystem = User::sum('display_poin');
 
             // Get active users (users with activity in last 30 days)
             $activeUsers = User::where('updated_at', '>=', Carbon::now()->subDays(30))
@@ -246,12 +250,14 @@ class AdminPointController extends Controller
     /**
      * Get system-wide point breakdown by source
      * GET /api/poin/breakdown/all
+     *
+     * CATATAN: Menggunakan display_poin untuk total keseluruhan
      */
     public function getBreakdown(Request $request)
     {
         try {
-            // Get total points in system
-            $totalPoints = User::sum('total_poin');
+            // Get total points in system (using display_poin)
+            $totalPoints = User::sum('display_poin');
 
             // Get breakdown by source (sumber) with transaction counts
             $breakdown = PoinTransaksi::select(

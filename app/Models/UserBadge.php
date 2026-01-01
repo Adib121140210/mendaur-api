@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * Model UserBadge - Tabel user_badges (Pivot Table)
+ *
+ * Menyimpan relasi antara user dan badge yang sudah didapat
+ */
 class UserBadge extends Model
 {
     use HasFactory;
@@ -15,10 +20,10 @@ class UserBadge extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',
-        'badge_id',
-        'tanggal_dapat',
-        'reward_claimed'
+        'user_id',        // ID pengguna
+        'badge_id',       // ID badge yang didapat
+        'tanggal_dapat',  // Tanggal badge didapat
+        'reward_claimed', // Apakah reward poin sudah diklaim
     ];
 
     protected $casts = [

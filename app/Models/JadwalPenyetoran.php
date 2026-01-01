@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model JadwalPenyetoran - Tabel jadwal_penyetorans
+ *
+ * Menyimpan jadwal operasional bank sampah untuk penyetoran
+ */
 class JadwalPenyetoran extends Model
 {
     use HasFactory;
@@ -15,12 +20,11 @@ class JadwalPenyetoran extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'hari',           // CHANGED: from 'tanggal' to 'hari'
-        'waktu_mulai',
-        'waktu_selesai',
-        'lokasi',
-        'status',         // UPDATED: enum 'Buka', 'Tutup'
-        // REMOVED: 'kapasitas'
+        'hari',           // Hari operasional: Senin, Selasa, ..., Minggu
+        'waktu_mulai',    // Jam buka (format HH:mm)
+        'waktu_selesai',  // Jam tutup (format HH:mm)
+        'lokasi',         // Lokasi bank sampah
+        'status',         // Status: Buka, Tutup
     ];
 
     protected $casts = [

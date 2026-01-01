@@ -477,23 +477,3 @@ Route::post('users/{userId}/check-badges', [BadgeController::class, 'checkBadges
 Route::post('tabung-sampah/{id}/approve', [TabungSampahController::class, 'approve']);
 Route::post('tabung-sampah/{id}/reject', [TabungSampahController::class, 'reject']);
 
-// Test Route
-Route::get('/user', function (Request $request) {
-    return response()->json([
-        'status' => 'success',
-        'message' => 'API is working!',
-        'data' => 'good'
-    ], 200);
-});
-
-// Health check endpoint for Railway
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-        'timestamp' => now(),
-        'service' => 'Mendaur Bank Sampah API',
-        'version' => '1.0.0'
-    ]);
-});
-
-

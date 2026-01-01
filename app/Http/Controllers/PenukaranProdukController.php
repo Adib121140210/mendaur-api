@@ -244,6 +244,11 @@ class PenukaranProdukController extends Controller
     /**
      * Cancel redemption and refund points
      * PUT /api/penukaran-produk/{id}/cancel
+     *
+     * SKEMA POIN:
+     * - Hanya tambah actual_poin (refund ke saldo)
+     * - display_poin TIDAK BERUBAH (karena tidak pernah dikurangi)
+     * - Catat di poin_transaksis dengan poin_didapat POSITIF (refund)
      */
     public function cancel(Request $request, $id)
     {
@@ -263,9 +268,15 @@ class PenukaranProdukController extends Controller
             \DB::beginTransaction();
 
             try {
-                // Refund points to user
-                $user = $redemption->user;
-                $user->increment('actual_poin', $redemption->poin_digunakan);
+                // CRITICAL: Use PointService to refund points
+                // This will:
+                // - Update ONLY actual_poin (NOT display_poin)
+                // - Record transaction in poin_transaksis with POSITIVE value (refund)
+                PointService::refundRedemptionPoints(
+                    $redemption->user_id,
+                    $redemption->poin_digunakan,
+                    $redemption->penukaran_produk_id ?? $redemption->id
+                );
 
                 // Return stock to product
                 $produk = $redemption->produk;
@@ -277,6 +288,7 @@ class PenukaranProdukController extends Controller
                 \DB::commit();
 
                 // Refresh data from database
+                $user = $redemption->user;
                 $user->refresh();
                 $redemption->refresh();
 
@@ -284,10 +296,11 @@ class PenukaranProdukController extends Controller
                     'status' => 'success',
                     'message' => 'Penukaran berhasil dibatalkan, poin telah dikembalikan',
                     'data' => [
-                        'id' => $redemption->id,
+                        'id' => $redemption->penukaran_produk_id ?? $redemption->id,
                         'status' => $redemption->status,
                         'poin_dikembalikan' => $redemption->poin_digunakan,
                         'user_actual_poin' => $user->actual_poin,
+                        'user_display_poin' => $user->display_poin, // Should remain unchanged
                         'stok_dikembalikan' => $redemption->jumlah
                     ]
                 ], 200);
@@ -320,6 +333,11 @@ class PenukaranProdukController extends Controller
     /**
      * Delete redemption and refund points
      * DELETE /api/penukaran-produk/{id}
+     *
+     * SKEMA POIN (jika status bukan cancelled):
+     * - Hanya tambah actual_poin (refund ke saldo)
+     * - display_poin TIDAK BERUBAH
+     * - Catat di poin_transaksis dengan poin_didapat POSITIF (refund)
      */
     public function destroy(Request $request, $id)
     {
@@ -341,8 +359,12 @@ class PenukaranProdukController extends Controller
             try {
                 // Only refund if not already cancelled
                 if ($redemption->status !== 'cancelled') {
-                    $user = $redemption->user;
-                    $user->increment('actual_poin', $redemption->poin_digunakan);
+                    // CRITICAL: Use PointService to refund points
+                    PointService::refundRedemptionPoints(
+                        $redemption->user_id,
+                        $redemption->poin_digunakan,
+                        $redemption->penukaran_produk_id ?? $redemption->id
+                    );
 
                     $produk = $redemption->produk;
                     $produk->increment('stok', $redemption->jumlah);
@@ -404,7 +426,7 @@ class PenukaranProdukController extends Controller
                     'jumlah', 'poin_digunakan', 'status', 'metode_ambil',
                     'catatan', 'tanggal_diambil', 'created_at', 'updated_at'
                 ])
-                ->with(['produk:produk_id,nama,harga_poin,foto,deskripsi'])
+                ->with(['produk:produk_id,nama_produk,harga_poin,gambar,deskripsi'])
                 ->where('user_id', $userId)
                 ->orderBy('created_at', 'desc');
 

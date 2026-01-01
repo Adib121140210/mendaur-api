@@ -35,9 +35,10 @@ class BadgeProgressController extends Controller
                 'status' => 'success',
                 'data' => [
                     'user' => [
-                        'id' => $user->id,
+                        'id' => $user->user_id,
                         'nama' => $user->nama,
-                        'poin_tercatat' => $user->poin_tercatat,
+                        'display_poin' => $user->display_poin, // Poin untuk leaderboard
+                        'actual_poin' => $user->actual_poin,   // Poin yang bisa digunakan
                         'total_setor' => $user->total_setor_sampah,
                     ],
                     'summary' => $summary,

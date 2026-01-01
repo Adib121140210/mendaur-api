@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\UserBadge;
 
+/**
+ * Model BadgeProgress - Tabel badge_progress
+ *
+ * Menyimpan progress user menuju unlock badge tertentu
+ */
 class BadgeProgress extends Model
 {
     protected $table = 'badge_progress';
@@ -14,13 +19,13 @@ class BadgeProgress extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',
-        'badge_id',
-        'current_value',
-        'target_value',
-        'progress_percentage',
-        'is_unlocked',
-        'unlocked_at',
+        'user_id',             // ID pengguna
+        'badge_id',            // ID badge yang sedang dikejar
+        'current_value',       // Nilai saat ini (poin/kg setor)
+        'target_value',        // Target nilai untuk unlock
+        'progress_percentage', // Persentase progress (0-100)
+        'is_unlocked',         // Sudah unlock atau belum
+        'unlocked_at',         // Waktu unlock
     ];
 
     protected $casts = [

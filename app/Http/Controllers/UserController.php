@@ -91,7 +91,7 @@ class UserController extends Controller
         }
 
         $file = $request->file('foto_profil');
-        
+
         // Check if file is valid
         if (!$file->isValid()) {
             $errorMessage = $this->getUploadErrorMessage($file->getError());
@@ -116,7 +116,7 @@ class UserController extends Controller
         // More lenient MIME type check for camera photos
         $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/octet-stream'];
         $mimeType = $file->getMimeType();
-        
+
         // If MIME is octet-stream, try to detect from extension
         if ($mimeType === 'application/octet-stream') {
             $extension = strtolower($file->getClientOriginalExtension());
@@ -150,7 +150,7 @@ class UserController extends Controller
 
         // Upload to Cloudinary
         $uploadResult = $cloudinaryService->uploadImage($file, 'profiles');
-        
+
         if (!$uploadResult['success']) {
             return response()->json([
                 'status' => 'error',

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Migration: Hapus kolom poin_tercatat yang redundant
- * 
+ *
  * Kolom poin_tercatat memiliki fungsi yang sama dengan display_poin,
  * yaitu menyimpan total poin historis. Untuk menghindari redundansi,
  * kita hapus poin_tercatat dan gunakan display_poin saja.

@@ -5,10 +5,16 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\LogAktivitas;
 use App\Models\PoinTransaksi;
+use App\Services\PointService;
 
 /**
  * Service untuk mengontrol akses fitur berdasarkan tipe nasabah
  * dan mengelola poin untuk sistem dual-nasabah (konvensional vs modern)
+ *
+ * CATATAN: Service ini sekarang menggunakan PointService untuk operasi poin
+ * untuk memastikan konsistensi dengan skema dual-poin:
+ * - display_poin: Untuk leaderboard (TIDAK PERNAH berkurang)
+ * - actual_poin: Untuk transaksi (bisa berkurang saat spend)
  */
 class DualNasabahFeatureAccessService
 {
@@ -128,8 +134,13 @@ class DualNasabahFeatureAccessService
     /**
      * Add poin untuk nasabah setelah deposit sampah
      *
-     * - Konvensional: tambah ke actual_poin (usable) DAN poin_tercatat (audit)
-     * - Modern: hanya tambah ke poin_tercatat (recorded only, not usable)
+     * - Konvensional: tambah ke actual_poin DAN display_poin (via PointService)
+     * - Modern: hanya tambah ke display_poin (poin tidak bisa digunakan)
+     *
+     * CATATAN SKEMA POIN:
+     * - Menggunakan PointService untuk konsistensi
+     * - display_poin untuk leaderboard (selalu naik)
+     * - actual_poin untuk transaksi (hanya untuk konvensional)
      */
     public function addPoinForDeposit(
         User $user,
@@ -138,36 +149,47 @@ class DualNasabahFeatureAccessService
         string $jenisSampah = '',
         string $sumber = 'tabung_sampah'
     ): void {
-        // Always add to poin_tercatat for audit trail
-        $user->addPoinTercatat($poin, "Deposit sampah dari $sumber");
-
-        // Add to actual_poin only for konvensional nasabah
         if ($user->isNasabahKonvensional()) {
-            $user->increment('actual_poin', $poin);
+            // Konvensional: gunakan earnPoints() standar (tambah kedua field)
+            PointService::earnPoints(
+                $user,
+                $poin,
+                'deposit_sampah_' . $sumber,
+                "Poin dari penyetoran sampah ({$jenisSampah})",
+                $tabungSampahId,
+                'TabungSampah'
+            );
+        } else {
+            // Modern: hanya tambah display_poin untuk leaderboard
+            // actual_poin tidak ditambah karena poin tidak bisa digunakan
+            $user->increment('display_poin', $poin);
+            $user->save();
+
+            // Create poin transaction log (marked as not usable)
+            PoinTransaksi::create([
+                'user_id' => $user->user_id,
+                'tabung_sampah_id' => $tabungSampahId,
+                'jenis_sampah' => $jenisSampah,
+                'berat_kg' => 0,
+                'poin_didapat' => $poin,
+                'sumber' => $sumber,
+                'keterangan' => 'Poin dari penyetoran sampah (modern nasabah - display only)',
+                'referensi_tipe' => 'TabungSampah',
+                'referensi_id' => $tabungSampahId,
+                'is_usable' => false,
+                'reason_not_usable' => 'modern_nasabah_type',
+            ]);
         }
-
-        $user->save();
-
-        // Create poin transaction log
-        PoinTransaksi::create([
-            'user_id' => $user->id,
-            'tabung_sampah_id' => $tabungSampahId,
-            'jenis_sampah' => $jenisSampah,
-            'berat_kg' => 0, // Will be updated by actual deposit
-            'poin_didapat' => $poin,
-            'sumber' => $sumber,
-            'keterangan' => 'Poin dari penyetoran sampah',
-            'referensi_tipe' => 'TabungSampah',
-            'referensi_id' => $tabungSampahId,
-            'is_usable' => $user->isNasabahKonvensional(),
-            'reason_not_usable' => $user->isNasabahModern() ? 'modern_nasabah_type' : null,
-        ]);
     }
 
     /**
      * Deduct poin untuk penukaran produk (redemption)
      *
      * Hanya untuk konvensional nasabah (modern nasabah tidak bisa sampai sini)
+     *
+     * CATATAN SKEMA POIN:
+     * - Menggunakan PointService.deductPointsForRedemption()
+     * - Hanya mengurangi actual_poin (display_poin TIDAK berkurang)
      */
     public function deductPoinForRedemption(
         User $user,
@@ -180,30 +202,23 @@ class DualNasabahFeatureAccessService
             throw new \Exception('Modern nasabah cannot redeem poin');
         }
 
-        // Deduct from actual_poin
-        if ($user->actual_poin >= $poin) {
-            $user->decrement('actual_poin', $poin);
-        }
-
-        // Log to poin_transaksis
-        PoinTransaksi::create([
-            'user_id' => $user->id,
-            'poin_didapat' => -$poin, // negative for deduction
-            'sumber' => 'penukaran_produk',
-            'keterangan' => "Penukaran produk: {$reason}",
-            'referensi_tipe' => 'PenukaranProduk',
-            'referensi_id' => $penukaranProdukId,
-            'is_usable' => true,
-            'reason_not_usable' => null,
-        ]);
-
-        $user->save();
+        // Use PointService for consistent poin handling
+        PointService::deductPointsForRedemption(
+            $user,
+            $poin,
+            $penukaranProdukId,
+            "Penukaran produk: {$reason}"
+        );
     }
 
     /**
      * Deduct poin untuk penarikan tunai (withdrawal)
      *
      * Hanya untuk konvensional nasabah
+     *
+     * CATATAN SKEMA POIN:
+     * - Menggunakan PointService.deductPointsForWithdrawal()
+     * - Hanya mengurangi actual_poin (display_poin TIDAK berkurang)
      */
     public function deductPoinForWithdrawal(
         User $user,
@@ -216,38 +231,29 @@ class DualNasabahFeatureAccessService
             throw new \Exception('Modern nasabah cannot withdraw poin');
         }
 
-        // Deduct from actual_poin
-        if ($user->actual_poin >= $poin) {
-            $user->decrement('actual_poin', $poin);
-        }
-
-        // Log to poin_transaksis
-        PoinTransaksi::create([
-            'user_id' => $user->id,
-            'poin_didapat' => -$poin, // negative for deduction
-            'sumber' => 'penarikan_tunai',
-            'keterangan' => "Penarikan tunai: {$reason}",
-            'referensi_tipe' => 'PenarikanTunai',
-            'referensi_id' => $penarikanTunaiId,
-            'is_usable' => true,
-            'reason_not_usable' => null,
-        ]);
-
-        $user->save();
+        // Use PointService for consistent poin handling
+        PointService::deductPointsForWithdrawal(
+            $user,
+            $poin,
+            $penarikanTunaiId,
+            "Penarikan tunai: {$reason}"
+        );
     }
 
     /**
      * Get poin display info for user
      * Returns different values based on nasabah type
+     *
+     * CATATAN: poin_tercatat sudah deprecated, gunakan display_poin
      */
     public function getPoinDisplay(User $user): array
     {
         return [
             'tipe_nasabah' => $user->tipe_nasabah,
-            'poin_tercatat' => $user->poin_tercatat,
+            'poin_tercatat' => $user->display_poin, // Backward compatibility, use display_poin
             'poin_usable' => $user->isNasabahKonvensional() ? $user->actual_poin : 0,
             'actual_poin' => $user->actual_poin,
-            'display_poin' => $user->getDisplayedPoin(),
+            'display_poin' => $user->display_poin,
             'message' => $user->isNasabahModern()
                 ? 'Poin Anda tercatat untuk badge dan leaderboard, tetapi tidak dapat digunakan untuk penarikan atau penukaran produk'
                 : 'Poin Anda dapat digunakan untuk penarikan tunai dan penukaran produk'
@@ -256,6 +262,8 @@ class DualNasabahFeatureAccessService
 
     /**
      * Log aktivitas untuk dual-nasabah tracking
+     *
+     * CATATAN: poin_tercatat sudah deprecated, gunakan display_poin
      */
     public function logActivity(
         User $user,
@@ -265,11 +273,11 @@ class DualNasabahFeatureAccessService
         string $sourceTipe = ''
     ): void {
         LogAktivitas::create([
-            'user_id' => $user->id,
+            'user_id' => $user->user_id,
             'tipe_aktivitas' => $tipeAktivitas,
             'deskripsi' => $deskripsi,
             'poin_perubahan' => $poinChange,
-            'poin_tercatat' => $user->poin_tercatat,
+            'poin_tercatat' => $user->display_poin, // Use display_poin instead
             'poin_usable' => $user->isNasabahKonvensional() ? $user->actual_poin : 0,
             'source_tipe' => $sourceTipe,
             'tanggal' => now(),
@@ -278,18 +286,21 @@ class DualNasabahFeatureAccessService
 
     /**
      * Summary data untuk dashboard nasabah
+     *
+     * CATATAN: poin_tercatat sudah deprecated, gunakan display_poin
      */
     public function getNasabahSummary(User $user): array
     {
         $badges = $user->userBadges()->with('badge')->get();
 
         return [
-            'user_id' => $user->id,
+            'user_id' => $user->user_id,
             'nama' => $user->nama,
             'tipe_nasabah' => $user->tipe_nasabah,
-            'poin_tercatat' => $user->poin_tercatat,
+            'poin_tercatat' => $user->display_poin, // Use display_poin for backward compatibility
             'poin_usable' => $user->isNasabahKonvensional() ? $user->actual_poin : 0,
             'actual_poin' => $user->actual_poin,
+            'display_poin' => $user->display_poin,
             'badges_count' => $badges->count(),
             'deposits_count' => $user->tabungSampahs()->count(),
             'feature_access' => [

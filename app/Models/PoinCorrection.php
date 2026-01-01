@@ -5,29 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Model PoinCorrection - Tabel poin_corrections
+ *
+ * Menyimpan riwayat koreksi poin oleh superadmin
+ */
 class PoinCorrection extends Model
 {
     use SoftDeletes;
 
     protected $table = 'poin_corrections';
-
     protected $primaryKey = 'poin_correction_id';
-
     public $incrementing = true;
 
     protected $fillable = [
-        'superadmin_id',
-        'nasabah_id',
-        'old_value',
-        'new_value',
-        'difference',
-        'reason',
-        'type',
-        'notes',
-        'is_reversed',
-        'reversed_by',
-        'reversed_at',
-        'status',
+        'superadmin_id', // ID superadmin yang melakukan koreksi
+        'nasabah_id',    // ID nasabah yang dikoreksi
+        'old_value',     // Nilai poin sebelum koreksi
+        'new_value',     // Nilai poin setelah koreksi
+        'difference',    // Selisih (+/-)
+        'reason',        // Alasan koreksi
+        'type',          // Tipe koreksi: add, subtract, set
+        'notes',         // Catatan tambahan
+        'is_reversed',   // Apakah koreksi sudah di-reverse
+        'reversed_by',   // ID admin yang reverse
+        'reversed_at',   // Waktu di-reverse
+        'status',        // Status: pending, approved, reversed
     ];
 
     protected $dates = [

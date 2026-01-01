@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model KategoriSampah - Tabel kategori_sampah
+ *
+ * Menyimpan kategori utama sampah (Plastik, Kertas, Logam, dll)
+ */
 class KategoriSampah extends Model
 {
     use HasFactory;
@@ -15,11 +20,11 @@ class KategoriSampah extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'nama_kategori',
-        'deskripsi',
-        'icon',
-        'warna',
-        'is_active',
+        'nama_kategori', // Nama kategori: Plastik, Kertas, Logam, Kaca, Organik
+        'deskripsi',     // Deskripsi kategori
+        'icon',          // URL icon kategori
+        'warna',         // Warna hex untuk UI (contoh: #FF5722)
+        'is_active',     // Status aktif/nonaktif
     ];
 
     protected $casts = [

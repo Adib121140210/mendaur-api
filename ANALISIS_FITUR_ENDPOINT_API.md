@@ -667,4 +667,66 @@ Modul khusus superadmin untuk mengelola admin, roles, permissions, dan sistem.
 
 ---
 
-**Dokumen ini dibuat otomatis pada 28 Desember 2025**
+## 🔄 UPDATE: Perubahan Skema Poin (1 Januari 2026)
+
+### Skema Dual-Poin Baru
+
+| Field | Deskripsi | Behavior |
+|-------|-----------|----------|
+| `display_poin` | Poin untuk leaderboard/ranking | Naik saat dapat poin, **TIDAK PERNAH TURUN** |
+| `actual_poin` | Poin yang bisa digunakan | Naik saat dapat, turun saat spend |
+
+### Field yang Deprecated:
+- ❌ `total_poin` → Gunakan `display_poin` atau `actual_poin`
+- ❌ `poin_tercatat` → Gunakan `display_poin`
+
+### Controllers yang Diperbaiki:
+
+1. **AdminPenukaranProdukController.php**
+   - ✅ `reject()`: Gunakan `PointService::refundRedemptionPoints()`
+
+2. **AdminPointsController.php**
+   - ✅ `award()`: Gunakan `PointService::earnPoints()`
+
+3. **AdminWasteController.php**
+   - ✅ `approve()`: Gunakan `PointService::earnPoints()`
+
+4. **AdminUserController.php**
+   - ✅ `store()`: Init dengan `actual_poin`, `display_poin`
+
+5. **BadgeProgressController.php**
+   - ✅ Return `display_poin` dan `actual_poin`
+
+6. **DashboardAdminController.php**
+   - ✅ Select `actual_poin`, `display_poin`
+
+7. **AdminPointController.php**
+   - ✅ Sum `display_poin` untuk statistik total
+
+8. **DualNasabahFeatureAccessService.php**
+   - ✅ Gunakan PointService untuk konsistensi
+
+### Aturan Penggunaan:
+
+```php
+// EARNING (dapat poin)
+PointService::earnPoints($user, $amount, $source, $desc, $refId, $refType);
+// Efek: actual_poin += amount, display_poin += amount
+
+// SPENDING (gunakan poin)
+PointService::spendPoints($user, $amount, $source, $refId, $refType, $desc);
+// Efek: actual_poin -= amount, display_poin TIDAK BERUBAH
+
+// REFUND (kembalikan poin)
+PointService::refundPoints($user, $amount, $source, $desc, $refId, $refType);
+// Efek: actual_poin += amount, display_poin TIDAK BERUBAH
+
+// Cek saldo
+$user->getUsablePoin();  // actual_poin (saldo)
+$user->display_poin;     // untuk leaderboard
+```
+
+---
+
+**Dokumen ini dibuat otomatis pada 28 Desember 2025**  
+**Update terakhir: 1 Januari 2026 - Perbaikan skema dual-poin**

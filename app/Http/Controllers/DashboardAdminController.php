@@ -26,7 +26,7 @@ class DashboardAdminController extends Controller
             $query = User::with(['tabungSampah' => function ($q) {
                 $q->where('status', 'approved');
             }])
-                ->select('id', 'nama', 'email', 'no_hp', 'total_poin', 'level', 'created_at', 'updated_at');
+                ->select('user_id', 'nama', 'email', 'no_hp', 'actual_poin', 'display_poin', 'level', 'created_at', 'updated_at');
 
             if ($search) {
                 $query->where('nama', 'like', '%' . $search . '%')

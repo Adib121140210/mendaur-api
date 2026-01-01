@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PenarikanTunai;
 use App\Models\User;
 use App\Models\Notifikasi;
+use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Resources\PenarikanTunaiResource;
@@ -13,6 +14,11 @@ class PenarikanTunaiController extends Controller
 {
     /**
      * Submit withdrawal request (POST /api/penarikan-tunai)
+     *
+     * SKEMA POIN:
+     * - Hanya kurangi actual_poin (saldo berkurang)
+     * - display_poin TIDAK BERUBAH (untuk leaderboard tetap)
+     * - Catat di poin_transaksis dengan poin_didapat NEGATIF
      */
     public function store(Request $request)
     {
@@ -37,7 +43,7 @@ class PenarikanTunaiController extends Controller
         // Get authenticated user from token
         $user = $request->user();
 
-        // FIXED: Use actual available poin from transactions, not actual_poin field
+        // Use actual available poin from transactions
         $availablePoin = $user->getUsablePoin();
 
         if ($availablePoin < $validated['jumlah_poin']) {
@@ -55,10 +61,7 @@ class PenarikanTunaiController extends Controller
 
         DB::beginTransaction();
         try {
-            // CRITICAL: Deduct points immediately to prevent double spending
-            $user->decrement('actual_poin', $validated['jumlah_poin']);
-
-            // Create withdrawal record
+            // Create withdrawal record first
             $withdrawal = PenarikanTunai::create([
                 'user_id' => $user->user_id,
                 'jumlah_poin' => $validated['jumlah_poin'],
@@ -69,36 +72,48 @@ class PenarikanTunaiController extends Controller
                 'status' => 'pending'
             ]);
 
+            // CRITICAL: Use PointService to deduct points
+            // This will:
+            // - Update ONLY actual_poin (NOT display_poin)
+            // - Record transaction in poin_transaksis with NEGATIVE value
+            PointService::deductPointsForWithdrawal(
+                $user,
+                $validated['jumlah_poin'],
+                $withdrawal->penarikan_tunai_id
+            );
+
             // Send notification to user
             Notifikasi::create([
                 'user_id' => $user->user_id,
                 'judul' => 'Permintaan Penarikan Tunai Diajukan',
-                'pesan' => "Permintaan penarikan Rp " . number_format($jumlah_rupiah, 0, ',', '.') . " berhasil diajukan dan sedang diproses",
+                'pesan' => "Permintaan penarikan Rp " . number_format($jumlah_rupiah, 0, ',', '.') . " ({$validated['jumlah_poin']} poin) berhasil diajukan dan sedang diproses",
                 'tipe' => 'penarikan_tunai',
                 'is_read' => false
             ]);
 
-            // TODO: Send notification to admin (all admin users)
-            // User::where('level', 'admin')->each(function($admin) use ($user, $jumlah_rupiah) {
-            //     Notifikasi::create([
-            //         'user_id' => $admin->id,
-            //         'judul' => 'Permintaan Penarikan Tunai Baru',
-            //         'pesan' => "Ada permintaan penarikan tunai sebesar Rp " . number_format($jumlah_rupiah, 0, ',', '.') . " dari {$user->nama}",
-            //         'tipe' => 'admin_notif',
-            //         'is_read' => false
-            //     ]);
-            // });
-
             DB::commit();
+
+            // Refresh user to get updated poin
+            $user->refresh();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Permintaan penarikan tunai berhasil diajukan',
-                'data' => new PenarikanTunaiResource($withdrawal)
+                'data' => new PenarikanTunaiResource($withdrawal),
+                'user_poin' => [
+                    'actual_poin' => $user->actual_poin,
+                    'display_poin' => $user->display_poin, // Should remain unchanged
+                ]
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollback();
+
+            \Log::error('Withdrawal request failed', [
+                'user_id' => $user->user_id,
+                'jumlah_poin' => $validated['jumlah_poin'],
+                'error' => $e->getMessage()
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -206,7 +221,7 @@ class PenarikanTunaiController extends Controller
 
         $query = PenarikanTunai::select([
                 'penarikan_tunai_id', 'user_id', 'jumlah_poin', 'jumlah_rupiah',
-                'nomor_rekening', 'nama_bank', 'nama_penerima', 'status', 
+                'nomor_rekening', 'nama_bank', 'nama_penerima', 'status',
                 'created_at', 'updated_at'
             ])
             ->where('user_id', $userId);

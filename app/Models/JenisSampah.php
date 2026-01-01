@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model JenisSampah - Tabel jenis_sampah
+ *
+ * Menyimpan daftar jenis sampah beserta harga per kg
+ */
 class JenisSampah extends Model
 {
     use HasFactory;
@@ -15,12 +20,12 @@ class JenisSampah extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'kategori_sampah_id',
-        'nama_jenis',
-        'harga_per_kg',
-        'satuan',
-        'kode',
-        'is_active',
+        'kategori_sampah_id', // FK ke kategori sampah (Plastik, Kertas, dll)
+        'nama_jenis',         // Nama spesifik: Botol PET, Kardus, dll
+        'harga_per_kg',       // Harga beli per kg (untuk display/referensi)
+        'satuan',             // Satuan: kg, pcs, dll
+        'kode',               // Kode unik jenis sampah
+        'is_active',          // Status aktif/nonaktif
     ];
 
     protected $casts = [

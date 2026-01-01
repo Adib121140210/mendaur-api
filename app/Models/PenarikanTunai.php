@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * Model PenarikanTunai - Tabel penarikan_tunai
+ *
+ * Menyimpan data permintaan penarikan tunai/withdrawal (hanya nasabah modern)
+ */
 class PenarikanTunai extends Model
 {
     use HasFactory;
@@ -15,16 +20,16 @@ class PenarikanTunai extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',
-        'jumlah_poin',
-        'jumlah_rupiah',
-        'nomor_rekening',
-        'nama_bank',
-        'nama_penerima',
-        'status',
-        'catatan_admin',
-        'processed_by',
-        'processed_at'
+        'user_id',        // ID nasabah yang request
+        'jumlah_poin',    // Jumlah poin yang ditarik
+        'jumlah_rupiah',  // Nilai rupiah (konversi dari poin)
+        'nomor_rekening', // Nomor rekening tujuan
+        'nama_bank',      // Nama bank tujuan
+        'nama_penerima',  // Nama penerima di rekening
+        'status',         // Status: pending, approved, rejected
+        'catatan_admin',  // Catatan dari admin (alasan reject, dll)
+        'processed_by',   // ID admin yang memproses
+        'processed_at',   // Waktu diproses
     ];
 
     protected $casts = [

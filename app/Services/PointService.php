@@ -8,8 +8,44 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * PointService - Centralized Point Management
+ *
+ * SKEMA POIN:
+ * - display_poin: Untuk leaderboard/ranking (bisa di-reset periodik)
+ * - actual_poin: Untuk transaksi (withdrawal, redeem) - saldo aktual
+ *
+ * ATURAN:
+ * 1. MENAMBAH POIN (setor sampah, bonus, badge reward):
+ *    - Tambah display_poin (untuk leaderboard)
+ *    - Tambah actual_poin (untuk saldo)
+ *    - Catat di poin_transaksis dengan poin_didapat POSITIF
+ *
+ * 2. MENGURANGI POIN (redeem produk, withdrawal):
+ *    - TIDAK kurangi display_poin (leaderboard tetap)
+ *    - Kurangi actual_poin (saldo berkurang)
+ *    - Catat di poin_transaksis dengan poin_didapat NEGATIF
+ *
+ * 3. REFUND POIN (cancel redeem, reject withdrawal):
+ *    - TIDAK tambah display_poin (karena sebelumnya tidak dikurangi)
+ *    - Tambah actual_poin (saldo kembali)
+ *    - Catat di poin_transaksis dengan poin_didapat POSITIF (refund)
+ */
 class PointService
 {
+    // ==========================================
+    // Sumber Transaksi Poin
+    // ==========================================
+    const SUMBER_SETOR_SAMPAH = 'setor_sampah';
+    const SUMBER_BONUS = 'bonus';
+    const SUMBER_BADGE_REWARD = 'badge_reward';
+    const SUMBER_EVENT = 'event';
+    const SUMBER_MANUAL = 'manual';
+    const SUMBER_PENUKARAN_PRODUK = 'penukaran_produk';
+    const SUMBER_REFUND_PENUKARAN = 'refund_penukaran';
+    const SUMBER_PENARIKAN_TUNAI = 'penarikan_tunai';
+    const SUMBER_PENGEMBALIAN_PENARIKAN = 'pengembalian_penarikan';
+
     /**
      * Point values per kg for each waste type
      * These can be moved to database as configuration if needed
@@ -37,8 +73,13 @@ class PointService
     ];
 
     /**
-     * Record a point transaction in the point ledger
-     * This is the core method that all point changes go through
+     * INTERNAL: Record a point transaction in the point ledger
+     * This is the core method that handles actual_poin updates
+     *
+     * NOTE: This method ONLY updates actual_poin, not display_poin
+     * For earning points, call earnPoints() instead
+     * For spending points, call spendPoints() instead
+     * For refunds, call refundPoints() instead
      *
      * @param int $userId
      * @param int $points (can be negative for deductions)
@@ -47,27 +88,29 @@ class PointService
      * @param TabungSampah|null $tabungSampah Related waste deposit
      * @param int|null $referensiId Reference to related entity
      * @param string|null $referensiTipe Type of reference
+     * @param bool $updateDisplayPoin Whether to also update display_poin (for earning only)
      * @return PoinTransaksi
      * @throws \Exception
      */
-    public static function recordPointTransaction(
+    protected static function recordPointTransaction(
         $userId,
         $points,
         $sumber = 'setor_sampah',
         $keterangan = '',
         $tabungSampah = null,
         $referensiId = null,
-        $referensiTipe = null
+        $referensiTipe = null,
+        bool $updateDisplayPoin = false
     ): PoinTransaksi {
         return DB::transaction(function() use (
             $userId, $points, $sumber, $keterangan,
-            $tabungSampah, $referensiId, $referensiTipe
+            $tabungSampah, $referensiId, $referensiTipe, $updateDisplayPoin
         ) {
             try {
                 // Create transaction record
                 $transaction = PoinTransaksi::create([
                     'user_id' => $userId,
-                    'tabung_sampah_id' => $tabungSampah?->id,
+                    'tabung_sampah_id' => $tabungSampah?->tabung_sampah_id ?? $tabungSampah?->id,
                     'jenis_sampah' => $tabungSampah?->jenis_sampah,
                     'berat_kg' => $tabungSampah?->berat_kg,
                     'poin_didapat' => $points,
@@ -77,20 +120,30 @@ class PointService
                     'referensi_tipe' => $referensiTipe,
                 ]);
 
-                // Update user total points
+                // Update user points
                 $user = User::findOrFail($userId);
-                $oldTotal = $user->actual_poin;
+                $oldActualPoin = $user->actual_poin;
+                $oldDisplayPoin = $user->display_poin;
+
+                // Always update actual_poin
                 $user->increment('actual_poin', $points);
-                $newTotal = $user->actual_poin;
+
+                // Only update display_poin for earning (not for spending or refunds)
+                if ($updateDisplayPoin && $points > 0) {
+                    $user->increment('display_poin', $points);
+                }
 
                 // Log for debugging
                 Log::info('Point transaction recorded', [
                     'user_id' => $userId,
                     'points' => $points,
                     'sumber' => $sumber,
-                    'old_total' => $oldTotal,
-                    'new_total' => $newTotal,
-                    'transaction_id' => $transaction->id,
+                    'update_display_poin' => $updateDisplayPoin,
+                    'old_actual_poin' => $oldActualPoin,
+                    'new_actual_poin' => $user->fresh()->actual_poin,
+                    'old_display_poin' => $oldDisplayPoin,
+                    'new_display_poin' => $user->fresh()->display_poin,
+                    'transaction_id' => $transaction->poin_transaksi_id ?? $transaction->id,
                 ]);
 
                 return $transaction;
@@ -98,11 +151,133 @@ class PointService
                 Log::error('Failed to record point transaction', [
                     'user_id' => $userId,
                     'points' => $points,
+                    'sumber' => $sumber,
                     'error' => $e->getMessage(),
                 ]);
                 throw $e;
             }
         });
+    }
+
+    // ==========================================
+    // PUBLIC METHODS FOR EARNING POINTS
+    // These update BOTH display_poin AND actual_poin
+    // ==========================================
+
+    /**
+     * Award points for earning actions (setor sampah, bonus, badge, event)
+     * Updates BOTH display_poin and actual_poin
+     *
+     * @param int $userId
+     * @param int $points Must be positive
+     * @param string $sumber setor_sampah|bonus|badge_reward|event|manual
+     * @param string $keterangan
+     * @param TabungSampah|null $tabungSampah
+     * @param int|null $referensiId
+     * @param string|null $referensiTipe
+     * @return PoinTransaksi
+     */
+    public static function earnPoints(
+        int $userId,
+        int $points,
+        string $sumber,
+        string $keterangan = '',
+        ?TabungSampah $tabungSampah = null,
+        ?int $referensiId = null,
+        ?string $referensiTipe = null
+    ): PoinTransaksi {
+        if ($points <= 0) {
+            throw new \InvalidArgumentException('Points to earn must be positive');
+        }
+
+        return self::recordPointTransaction(
+            $userId,
+            $points,
+            $sumber,
+            $keterangan,
+            $tabungSampah,
+            $referensiId,
+            $referensiTipe,
+            true // Update display_poin too
+        );
+    }
+
+    /**
+     * Spend points for transactions (redeem produk, withdrawal)
+     * Updates ONLY actual_poin (display_poin stays the same for leaderboard)
+     *
+     * @param int $userId
+     * @param int $points Amount to spend (positive number, will be stored as negative)
+     * @param string $sumber penukaran_produk|penarikan_tunai
+     * @param string $keterangan
+     * @param int|null $referensiId
+     * @param string|null $referensiTipe
+     * @return PoinTransaksi
+     */
+    public static function spendPoints(
+        int $userId,
+        int $points,
+        string $sumber,
+        string $keterangan = '',
+        ?int $referensiId = null,
+        ?string $referensiTipe = null
+    ): PoinTransaksi {
+        if ($points <= 0) {
+            throw new \InvalidArgumentException('Points to spend must be positive');
+        }
+
+        // Validate user has enough points
+        $user = User::findOrFail($userId);
+        if ($user->actual_poin < $points) {
+            throw new \Exception("Poin tidak cukup. Saldo: {$user->actual_poin}, Dibutuhkan: {$points}");
+        }
+
+        return self::recordPointTransaction(
+            $userId,
+            -$points, // Negative for spending
+            $sumber,
+            $keterangan,
+            null,
+            $referensiId,
+            $referensiTipe,
+            false // Don't update display_poin
+        );
+    }
+
+    /**
+     * Refund points for cancelled/rejected transactions
+     * Updates ONLY actual_poin (display_poin was never reduced)
+     *
+     * @param int $userId
+     * @param int $points Amount to refund (positive number)
+     * @param string $sumber refund_penukaran|pengembalian_penarikan
+     * @param string $keterangan
+     * @param int|null $referensiId
+     * @param string|null $referensiTipe
+     * @return PoinTransaksi
+     */
+    public static function refundPoints(
+        int $userId,
+        int $points,
+        string $sumber,
+        string $keterangan = '',
+        ?int $referensiId = null,
+        ?string $referensiTipe = null
+    ): PoinTransaksi {
+        if ($points <= 0) {
+            throw new \InvalidArgumentException('Points to refund must be positive');
+        }
+
+        return self::recordPointTransaction(
+            $userId,
+            $points, // Positive for refund
+            $sumber,
+            $keterangan,
+            null,
+            $referensiId,
+            $referensiTipe,
+            false // Don't update display_poin (it was never reduced)
+        );
     }
 
     /**
@@ -199,6 +374,7 @@ class PointService
     /**
      * Apply points when a deposit is approved
      * This combines base points + bonus calculation + recording
+     * Updates BOTH display_poin AND actual_poin
      *
      * @param TabungSampah $tabungSampah
      * @return PoinTransaksi
@@ -213,19 +389,21 @@ class PointService
             $keterangan .= " + " . $calculation['breakdown']['bonus_details'];
         }
 
-        return self::recordPointTransaction(
+        // Use earnPoints to update BOTH display_poin and actual_poin
+        return self::earnPoints(
             $tabungSampah->user_id,
             $calculation['total'],
-            'setor_sampah',
+            self::SUMBER_SETOR_SAMPAH,
             $keterangan,
             $tabungSampah,
-            $tabungSampah->id,
-            'tabung_sampah'
+            $tabungSampah->tabung_sampah_id ?? $tabungSampah->id,
+            'TabungSampah'
         );
     }
 
     /**
      * Deduct points for product redemption
+     * Updates ONLY actual_poin (display_poin stays for leaderboard)
      *
      * @param User $user
      * @param int $poinDigunakan
@@ -238,28 +416,50 @@ class PointService
         int $poinDigunakan,
         ?int $penukaranId = null
     ): PoinTransaksi {
-        // Validate sufficient points
-        if ($user->actual_poin < $poinDigunakan) {
-            throw new \Exception("Poin tidak cukup. Anda memiliki {$user->actual_poin} poin tetapi membutuhkan {$poinDigunakan} poin.");
-        }
-
-        return self::recordPointTransaction(
-            $user->id,
-            -$poinDigunakan,  // Negative for deduction
-            'redemption',
+        // Use spendPoints to update ONLY actual_poin
+        return self::spendPoints(
+            $user->user_id,
+            $poinDigunakan,
+            self::SUMBER_PENUKARAN_PRODUK,
             "Penukaran produk: -{$poinDigunakan} poin",
-            null,
             $penukaranId,
-            'penukaran_produk'
+            'PenukaranProduk'
+        );
+    }
+
+    /**
+     * Deduct points for withdrawal request
+     * Updates ONLY actual_poin (display_poin stays for leaderboard)
+     *
+     * @param User $user
+     * @param int $jumlahPoin
+     * @param int|null $penarikanId Reference to penarikan_tunai record
+     * @return PoinTransaksi
+     * @throws \Exception
+     */
+    public static function deductPointsForWithdrawal(
+        User $user,
+        int $jumlahPoin,
+        ?int $penarikanId = null
+    ): PoinTransaksi {
+        // Use spendPoints to update ONLY actual_poin
+        return self::spendPoints(
+            $user->user_id,
+            $jumlahPoin,
+            self::SUMBER_PENARIKAN_TUNAI,
+            "Penarikan tunai: -{$jumlahPoin} poin",
+            $penarikanId,
+            'PenarikanTunai'
         );
     }
 
     /**
      * Award bonus points (for events, admin, badges, etc)
+     * Updates BOTH display_poin AND actual_poin
      *
      * @param int $userId
      * @param int $points
-     * @param string $reason (e.g., 'badge_unlock', 'event', 'manual')
+     * @param string $reason (e.g., 'badge_reward', 'event', 'bonus')
      * @param string $description
      * @param int|null $referensiId
      * @param string|null $referensiTipe
@@ -274,9 +474,15 @@ class PointService
         ?int $referensiId = null,
         ?string $referensiTipe = null
     ): PoinTransaksi {
-        $sumber = in_array($reason, ['badge_unlock', 'event', 'manual']) ? $reason : 'bonus';
+        $sumber = match($reason) {
+            'badge_unlock', 'badge_reward', 'badge' => self::SUMBER_BADGE_REWARD,
+            'event' => self::SUMBER_EVENT,
+            'manual' => self::SUMBER_MANUAL,
+            default => self::SUMBER_BONUS,
+        };
 
-        return self::recordPointTransaction(
+        // Use earnPoints to update BOTH display_poin and actual_poin
+        return self::earnPoints(
             $userId,
             $points,
             $sumber,
@@ -288,31 +494,52 @@ class PointService
     }
 
     /**
-     * Refund points (e.g., when redemption is rejected)
+     * Refund points for cancelled redemption
+     * Updates ONLY actual_poin (display_poin was never reduced)
      *
      * @param int $userId
      * @param int $points
-     * @param string $reason
-     * @param int|null $referensiId
-     * @param string|null $referensiTipe
+     * @param int|null $penukaranId
      * @return PoinTransaksi
      * @throws \Exception
      */
-    public static function refundPoints(
-        $userId,
+    public static function refundRedemptionPoints(
+        int $userId,
         int $points,
-        string $reason = 'manual',
-        ?int $referensiId = null,
-        ?string $referensiTipe = null
+        ?int $penukaranId = null
     ): PoinTransaksi {
-        return self::recordPointTransaction(
+        return self::refundPoints(
             $userId,
             $points,
-            'manual',
-            "Pengembalian poin: +{$points} ({$reason})",
-            null,
-            $referensiId,
-            $referensiTipe
+            self::SUMBER_REFUND_PENUKARAN,
+            "Pengembalian poin dari penukaran yang dibatalkan",
+            $penukaranId,
+            'PenukaranProduk'
+        );
+    }
+
+    /**
+     * Refund points for rejected withdrawal
+     * Updates ONLY actual_poin (display_poin was never reduced)
+     *
+     * @param int $userId
+     * @param int $points
+     * @param int|null $penarikanId
+     * @return PoinTransaksi
+     * @throws \Exception
+     */
+    public static function refundWithdrawalPoints(
+        int $userId,
+        int $points,
+        ?int $penarikanId = null
+    ): PoinTransaksi {
+        return self::refundPoints(
+            $userId,
+            $points,
+            self::SUMBER_PENGEMBALIAN_PENARIKAN,
+            "Pengembalian poin dari penarikan tunai yang ditolak",
+            $penarikanId,
+            'PenarikanTunai'
         );
     }
 

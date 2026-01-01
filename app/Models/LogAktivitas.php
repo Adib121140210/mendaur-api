@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Model LogAktivitas - Tabel log_aktivitas
+ *
+ * Mencatat aktivitas user untuk timeline/history
+ */
 class LogAktivitas extends Model
 {
     protected $table = 'log_aktivitas';
@@ -12,14 +17,14 @@ class LogAktivitas extends Model
     public $incrementing = true;
     protected $keyType = 'int';
 
-    public $timestamps = false; // Using custom 'created_at' field
+    public $timestamps = false;
 
     protected $fillable = [
-        'user_id',
-        'tipe_aktivitas',
-        'deskripsi',
-        'poin_perubahan',
-        'tanggal',
+        'user_id',         // ID pengguna
+        'tipe_aktivitas',  // Tipe: setor_sampah, tukar_poin, badge_unlock, dll
+        'deskripsi',       // Deskripsi aktivitas
+        'poin_perubahan',  // Perubahan poin (+/-)
+        'tanggal',         // Waktu aktivitas
     ];
 
     protected $casts = [
