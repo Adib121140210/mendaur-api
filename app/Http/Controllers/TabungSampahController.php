@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\LogAktivitas;
 use App\Services\BadgeService;
 use App\Services\PointService;
+use App\Services\CloudinaryService;
 use App\Http\Resources\TabungSampahResource;
 
 class TabungSampahController extends Controller
@@ -120,24 +121,34 @@ class TabungSampahController extends Controller
 
         $validated = $request->validate($rules);
 
-        // Handle file upload
+        // Handle file upload to Cloudinary
         if ($request->hasFile('foto_sampah')) {
             $file = $request->file('foto_sampah');
-
-            // Generate safe filename
-            $extension = $file->getClientOriginalExtension() ?: ($file->guessExtension() ?: 'jpg');
-            $filename = time() . '_' . uniqid() . '.' . $extension;
+            $cloudinaryService = new CloudinaryService();
 
             try {
-                $path = $file->storeAs('uploads/sampah', $filename, 'public');
-                $validated['foto_sampah'] = $path;
+                $uploadResult = $cloudinaryService->uploadImage($file, 'sampah');
 
-                \Log::info('Image uploaded successfully - TabungSampah store', [
-                    'user_id' => $request->user_id,
-                    'stored_path' => $path,
-                ]);
+                if ($uploadResult['success']) {
+                    $validated['foto_sampah'] = $uploadResult['url'];
+                    $validated['foto_sampah_public_id'] = $uploadResult['public_id'];
+
+                    \Log::info('Image uploaded to Cloudinary - TabungSampah store', [
+                        'user_id' => $request->user_id,
+                        'cloudinary_url' => $uploadResult['url'],
+                    ]);
+                } else {
+                    \Log::error('Cloudinary upload failed, falling back to local storage', [
+                        'error' => $uploadResult['error'] ?? 'Unknown error'
+                    ]);
+                    // Fallback to local storage
+                    $extension = $file->getClientOriginalExtension() ?: ($file->guessExtension() ?: 'jpg');
+                    $filename = time() . '_' . uniqid() . '.' . $extension;
+                    $path = $file->storeAs('uploads/sampah', $filename, 'public');
+                    $validated['foto_sampah'] = $path;
+                }
             } catch (\Exception $e) {
-                \Log::error('Failed to store image', [
+                \Log::error('Failed to upload image', [
                     'error' => $e->getMessage(),
                 ]);
                 return response()->json([

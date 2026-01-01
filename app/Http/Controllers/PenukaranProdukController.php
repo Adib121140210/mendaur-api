@@ -426,7 +426,7 @@ class PenukaranProdukController extends Controller
                     'jumlah', 'poin_digunakan', 'status', 'metode_ambil',
                     'catatan', 'tanggal_diambil', 'created_at', 'updated_at'
                 ])
-                ->with(['produk:produk_id,nama_produk,harga_poin,gambar,deskripsi'])
+                ->with(['produk:produk_id,nama,harga_poin,foto,deskripsi'])
                 ->where('user_id', $userId)
                 ->orderBy('created_at', 'desc');
 

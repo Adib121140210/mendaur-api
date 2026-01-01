@@ -18,9 +18,10 @@ class PenukaranProdukResource extends JsonResource
             'id' => $this->penukaran_produk_id,
             'produk' => [
                 'id' => $this->produk?->produk_id,
-                'nama' => $this->produk?->nama_produk,
+                'nama' => $this->produk?->nama,
                 'deskripsi' => $this->produk?->deskripsi,
-                'foto' => $this->produk?->gambar,
+                'foto' => $this->getProductPhotoUrl(),
+                'foto_url' => $this->getProductPhotoUrl(), // Alias for compatibility
                 'harga_poin' => $this->produk?->harga_poin,
             ],
             'poin_digunakan' => $this->poin_digunakan,
@@ -50,5 +51,31 @@ class PenukaranProdukResource extends JsonResource
         ];
 
         return $labels[$this->status] ?? $this->status;
+    }
+
+    /**
+     * Get the full URL for the product photo
+     * Handles both Cloudinary URLs and local storage paths
+     */
+    private function getProductPhotoUrl(): ?string
+    {
+        $foto = $this->produk?->foto;
+        
+        if (empty($foto)) {
+            return null;
+        }
+
+        // If it's already a full URL (Cloudinary), return as-is with HTTPS
+        if (str_starts_with($foto, 'http://') || str_starts_with($foto, 'https://')) {
+            return str_replace('http://', 'https://', $foto);
+        }
+
+        // Validate that foto is a valid file path
+        if (!preg_match('/^[\w\-\.\/]+$/', $foto)) {
+            return null;
+        }
+
+        // Otherwise, it's a local storage path - convert to full URL
+        return secure_asset('storage/' . $foto);
     }
 }

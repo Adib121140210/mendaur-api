@@ -20,14 +20,15 @@ class Artikel extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'judul',              // Judul artikel
-        'slug',               // URL-friendly slug dari judul
-        'konten',             // Isi artikel dalam HTML/markdown
-        'foto_cover',         // URL foto cover artikel
-        'penulis',            // Nama penulis artikel
-        'kategori',           // Kategori: tips, berita, edukasi, dll
-        'tanggal_publikasi',  // Tanggal artikel dipublikasikan
-        'views',              // Jumlah view artikel
+        'judul',                  // Judul artikel
+        'slug',                   // URL-friendly slug dari judul
+        'konten',                 // Isi artikel dalam HTML/markdown
+        'foto_cover',             // URL foto cover artikel (Cloudinary URL atau local path)
+        'foto_cover_public_id',   // Cloudinary public_id untuk menghapus foto
+        'penulis',                // Nama penulis artikel
+        'kategori',               // Kategori: tips, berita, edukasi, dll
+        'tanggal_publikasi',      // Tanggal artikel dipublikasikan
+        'views',                  // Jumlah view artikel
     ];
 
     protected $casts = [

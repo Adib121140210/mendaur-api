@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Artikel;
 use Illuminate\Support\Str;
 use App\Http\Resources\ArtikelResource;
+use App\Services\CloudinaryService;
 
 class ArtikelController extends Controller
 {
@@ -77,12 +78,25 @@ class ArtikelController extends Controller
         // Generate slug
         $validated['slug'] = Str::slug($validated['judul']);
 
-        // Handle file upload
+        // Handle file upload to Cloudinary
         if ($request->hasFile('foto_cover')) {
             $file = $request->file('foto_cover');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('uploads/artikel', $filename, 'public');
-            $validated['foto_cover'] = $path;
+            $cloudinaryService = new CloudinaryService();
+            
+            $uploadResult = $cloudinaryService->uploadImage($file, 'artikel');
+            
+            if ($uploadResult['success']) {
+                $validated['foto_cover'] = $uploadResult['url'];
+                $validated['foto_cover_public_id'] = $uploadResult['public_id'];
+            } else {
+                \Log::error('Cloudinary upload failed for artikel', [
+                    'error' => $uploadResult['error'] ?? 'Unknown error'
+                ]);
+                // Fallback to local storage
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('uploads/artikel', $filename, 'public');
+                $validated['foto_cover'] = $path;
+            }
         }
 
         $artikel = Artikel::create($validated);

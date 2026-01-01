@@ -20,16 +20,17 @@ class TabungSampah extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'user_id',              // ID nasabah yang menyetor
-        'jadwal_penyetoran_id', // ID jadwal penyetoran yang dipilih
-        'nama_lengkap',         // Nama lengkap penyetor
-        'no_hp',                // Nomor HP penyetor
-        'titik_lokasi',         // Lokasi penyetoran (koordinat/alamat)
-        'jenis_sampah',         // Jenis sampah: Plastik, Kertas, Logam, dll
-        'foto_sampah',          // URL foto sampah yang disetor
-        'status',               // Status: pending, approved, rejected
-        'berat_kg',             // Berat sampah dalam kilogram (diisi admin)
-        'poin_didapat',         // Poin yang diberikan (dihitung otomatis)
+        'user_id',                   // ID nasabah yang menyetor
+        'jadwal_penyetoran_id',      // ID jadwal penyetoran yang dipilih
+        'nama_lengkap',              // Nama lengkap penyetor
+        'no_hp',                     // Nomor HP penyetor
+        'titik_lokasi',              // Lokasi penyetoran (koordinat/alamat)
+        'jenis_sampah',              // Jenis sampah: Plastik, Kertas, Logam, dll
+        'foto_sampah',               // URL foto sampah (Cloudinary URL atau local path)
+        'foto_sampah_public_id',     // Cloudinary public_id untuk menghapus foto
+        'status',                    // Status: pending, approved, rejected
+        'berat_kg',                  // Berat sampah dalam kilogram (diisi admin)
+        'poin_didapat',              // Poin yang diberikan (dihitung otomatis)
     ];
 
     protected $casts = [

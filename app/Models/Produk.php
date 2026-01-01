@@ -20,13 +20,14 @@ class Produk extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
-        'nama',        // Nama produk
-        'deskripsi',   // Deskripsi produk
-        'harga_poin',  // Harga dalam satuan poin
-        'stok',        // Jumlah stok tersedia
-        'kategori',    // Kategori produk
-        'foto',        // URL foto produk
-        'status',      // Status: tersedia, habis, nonaktif
+        'nama',            // Nama produk
+        'deskripsi',       // Deskripsi produk
+        'harga_poin',      // Harga dalam satuan poin
+        'stok',            // Jumlah stok tersedia
+        'kategori',        // Kategori produk
+        'foto',            // URL foto produk (Cloudinary URL atau local path)
+        'foto_public_id',  // Cloudinary public_id untuk menghapus foto
+        'status',          // Status: tersedia, habis, nonaktif
     ];
 
     protected $casts = [

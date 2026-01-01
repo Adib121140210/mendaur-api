@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Produk;
 use App\Http\Resources\ProdukResource;
+use App\Services\CloudinaryService;
 
 class ProdukController extends Controller
 {
@@ -45,6 +46,7 @@ class ProdukController extends Controller
 
     /**
      * Create new product (Admin/Superadmin only)
+     * Uses Cloudinary for persistent image storage
      */
     public function store(Request $request)
     {
@@ -66,12 +68,25 @@ class ProdukController extends Controller
             'status' => 'nullable|in:tersedia,habis,nonaktif',
         ]);
 
-        // Handle file upload
+        // Handle file upload to Cloudinary
         if ($request->hasFile('foto')) {
             $file = $request->file('foto');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('uploads/produk', $filename, 'public');
-            $validated['foto'] = $path;
+            $cloudinaryService = new CloudinaryService();
+            
+            $uploadResult = $cloudinaryService->uploadImage($file, 'produk');
+            
+            if ($uploadResult['success']) {
+                $validated['foto'] = $uploadResult['url'];
+                $validated['foto_public_id'] = $uploadResult['public_id'];
+            } else {
+                \Log::error('Cloudinary upload failed for product', [
+                    'error' => $uploadResult['error'] ?? 'Unknown error'
+                ]);
+                // Fallback to local storage if Cloudinary fails
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('uploads/produk', $filename, 'public');
+                $validated['foto'] = $path;
+            }
         }
 
         $produk = Produk::create($validated);
@@ -85,6 +100,7 @@ class ProdukController extends Controller
 
     /**
      * Update product (Admin/Superadmin only)
+     * Uses Cloudinary for persistent image storage
      */
     public function update(Request $request, $id)
     {
@@ -115,12 +131,31 @@ class ProdukController extends Controller
             'status' => 'nullable|in:tersedia,habis,nonaktif',
         ]);
 
-        // Handle file upload
+        // Handle file upload to Cloudinary
         if ($request->hasFile('foto')) {
             $file = $request->file('foto');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('uploads/produk', $filename, 'public');
-            $validated['foto'] = $path;
+            $cloudinaryService = new CloudinaryService();
+            
+            // Delete old photo from Cloudinary if exists
+            if ($produk->foto_public_id) {
+                $cloudinaryService->deleteImage($produk->foto_public_id);
+            }
+            
+            $uploadResult = $cloudinaryService->uploadImage($file, 'produk');
+            
+            if ($uploadResult['success']) {
+                $validated['foto'] = $uploadResult['url'];
+                $validated['foto_public_id'] = $uploadResult['public_id'];
+            } else {
+                \Log::error('Cloudinary upload failed for product update', [
+                    'produk_id' => $id,
+                    'error' => $uploadResult['error'] ?? 'Unknown error'
+                ]);
+                // Fallback to local storage if Cloudinary fails
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('uploads/produk', $filename, 'public');
+                $validated['foto'] = $path;
+            }
         }
 
         $produk->update($validated);
