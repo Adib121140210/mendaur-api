@@ -114,6 +114,7 @@ Route::get('jadwal-penyetoran-aktif', [JadwalPenyetoranController::class, 'aktif
 
 // Jenis Sampah (Public - for form dropdown)
 Route::get('jenis-sampah', [JenisSampahController::class, 'index']);
+Route::get('jenis-sampah/stats', [JenisSampahController::class, 'stats']);
 Route::get('jenis-sampah/{id}', [JenisSampahController::class, 'show']);
 
 // Hierarchical Kategori Sampah System
@@ -286,6 +287,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Leaderboard
         Route::get('leaderboard', [AdminLeaderboardController::class, 'index']);
+        Route::get('leaderboard/overview', [AdminLeaderboardController::class, 'overview']);
         Route::get('leaderboard/settings', [AdminLeaderboardController::class, 'getSettings']);
         Route::put('leaderboard/settings', [AdminLeaderboardController::class, 'updateSettings']);
         Route::post('leaderboard/reset', [AdminLeaderboardController::class, 'resetLeaderboard']);

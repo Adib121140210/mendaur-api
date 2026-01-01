@@ -207,12 +207,13 @@ class AdminWasteController extends Controller
             // - actual_poin: Saldo yang bisa dipakai untuk transaksi
             // - display_poin: Poin untuk leaderboard (tidak pernah berkurang)
             PointService::earnPoints(
-                $user,
+                $user->user_id,
                 $request->poin_diberikan,
                 'admin_approve_deposit',
                 'Poin dari persetujuan penyetoran sampah oleh admin',
-                $deposit->tabung_sampah_id,
-                'TabungSampah'
+                null, // tabungSampah object (optional)
+                $deposit->tabung_sampah_id, // referensiId
+                'TabungSampah' // referensiTipe
             );
 
             // Log action in audit_logs

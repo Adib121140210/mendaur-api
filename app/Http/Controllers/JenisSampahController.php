@@ -188,4 +188,36 @@ class JenisSampahController extends Controller
             ], 404);
         }
     }
+
+    /**
+     * Get jenis sampah statistics
+     * GET /api/jenis-sampah/stats
+     */
+    public function stats()
+    {
+        try {
+            $totalJenis = JenisSampah::count();
+            $totalKategori = JenisSampah::distinct('kategori_sampah_id')->count('kategori_sampah_id');
+            $hargaTertinggi = JenisSampah::max('harga_per_kg') ?? 0;
+            $hargaTerendah = JenisSampah::where('harga_per_kg', '>', 0)->min('harga_per_kg') ?? 0;
+            $hargaRataRata = JenisSampah::where('harga_per_kg', '>', 0)->avg('harga_per_kg') ?? 0;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_jenis' => (int) $totalJenis,
+                    'total_kategori' => (int) $totalKategori,
+                    'harga_tertinggi' => (float) $hargaTertinggi,
+                    'harga_terendah' => (float) $hargaTerendah,
+                    'harga_rata_rata' => round((float) $hargaRataRata, 0),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil statistik',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

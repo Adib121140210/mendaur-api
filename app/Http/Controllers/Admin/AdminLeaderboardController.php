@@ -86,11 +86,68 @@ class AdminLeaderboardController extends Controller
             'data' => [
                 'reset_period' => $settings['reset_period'],
                 'auto_reset' => $settings['auto_reset'],
-                'next_reset_date' => $this->calculateNextResetDate($settings['reset_period']),
+                'custom_reset_date' => $settings['custom_reset_date'] ?? null,
+                'next_reset_date' => $settings['custom_reset_date'] ?? $this->calculateNextResetDate($settings['reset_period']),
                 'last_reset_date' => $settings['last_reset_date'],
                 'current_season' => $this->getCurrentSeason($settings['reset_period']),
             ]
         ]);
+    }
+
+    /**
+     * Get leaderboard overview stats
+     * GET /api/admin/leaderboard/overview
+     */
+    public function overview(Request $request)
+    {
+        try {
+            $settings = $this->getLeaderboardSettings();
+            
+            // Total peserta (active nasabah with any poin)
+            $totalPeserta = User::where('status', 'active')
+                ->where('role_id', 1)
+                ->count();
+            
+            // Total poin (sum of display_poin for leaderboard)
+            $totalPoin = User::where('status', 'active')
+                ->where('role_id', 1)
+                ->sum('display_poin');
+            
+            // Total sampah (from tabung_sampah approved)
+            $totalSampah = DB::table('tabung_sampah')
+                ->where('status', 'approved')
+                ->sum('berat_kg');
+            
+            // Calculate days to reset
+            $nextResetDate = $settings['custom_reset_date'] ?? $this->calculateNextResetDate($settings['reset_period']);
+            $daysToReset = Carbon::now()->diffInDays(Carbon::parse($nextResetDate), false);
+            $daysToReset = max(0, $daysToReset); // Ensure non-negative
+            
+            // Reset history count
+            $resetCount = \App\Models\AuditLog::where('action_type', 'reset_leaderboard')->count();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'total_peserta' => (int) $totalPeserta,
+                    'total_poin' => (int) $totalPoin,
+                    'total_sampah' => round((float) $totalSampah, 2),
+                    'total_sampah_formatted' => $this->formatWeight($totalSampah),
+                    'days_to_reset' => (int) $daysToReset,
+                    'next_reset_date' => $nextResetDate,
+                    'reset_period' => $settings['reset_period'],
+                    'auto_reset' => $settings['auto_reset'],
+                    'reset_count' => $resetCount,
+                    'current_season' => $this->getCurrentSeason($settings['reset_period']),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch overview',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -100,8 +157,9 @@ class AdminLeaderboardController extends Controller
     public function updateSettings(Request $request)
     {
         $validated = $request->validate([
-            'reset_period' => 'required|in:weekly,monthly,quarterly,yearly',
+            'reset_period' => 'required|in:weekly,monthly,quarterly,yearly,custom',
             'auto_reset' => 'required|boolean',
+            'custom_reset_date' => 'nullable|date|after:today',
         ]);
 
         $this->saveLeaderboardSettings($validated);
@@ -293,8 +351,21 @@ class AdminLeaderboardController extends Controller
                 return "Q" . $now->quarter . " " . $now->year;
             case 'yearly':
                 return "Year " . $now->year;
+            case 'custom':
+                return "Custom Period";
             default:
                 return $now->format('F Y');
         }
+    }
+
+    /**
+     * Format weight with proper unit (kg or ton)
+     */
+    private function formatWeight(float $weight): string
+    {
+        if ($weight >= 1000) {
+            return number_format($weight / 1000, 2, ',', '.') . ' Ton';
+        }
+        return number_format($weight, 2, ',', '.') . ' Kg';
     }
 }
