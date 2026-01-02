@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\PasswordReset;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 /**
@@ -40,15 +41,23 @@ class OtpService
         // Delete any existing OTP for this email (prevent multiple active OTPs)
         $this->cleanupOtpByEmail($email);
 
-        // Create new OTP record with HASHED version
-        $record = PasswordReset::create([
+        // Prepare data for OTP record
+        // Only include otp_hash if the column exists (backward compatibility)
+        $otpData = [
             'email' => $email,
-            'otp' => $otp,  // ← Temporary plaintext for backward compatibility
-            'otp_hash' => Hash::make($otp),  // ← NEW: Secure hashed version
-            'token' => Hash::make($otp),  // ← Legacy field, kept for compatibility
+            'otp' => $otp,  // Plaintext for backward compatibility
+            'token' => Hash::make($otp),  // Legacy field
             'expires_at' => $expiresAt,
             'created_at' => Carbon::now(),
-        ]);
+        ];
+
+        // Check if otp_hash column exists and add it
+        if (\Schema::hasColumn('password_resets', 'otp_hash')) {
+            $otpData['otp_hash'] = Hash::make($otp);
+        }
+
+        // Create new OTP record
+        $record = PasswordReset::create($otpData);
 
         return [
             'otp' => $otp,  // Return plaintext for email sending ONLY

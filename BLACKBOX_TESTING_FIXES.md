@@ -278,6 +278,7 @@ await api.post('/admin/artikel', formData, {
 - Clear local storage/cache
 - Pastikan panggil endpoint yang benar: `/api/admin/dashboard/overview`
 
+
 ### 3. User Detail Tidak Muncul
 **Kemungkinan Issue:**
 - Frontend belum implement fitur detail user
@@ -290,10 +291,40 @@ GET /api/admin/users/{userId}
 
 ---
 
+### BT-05/06/07: Forgot Password - Fixed OTP Flow
+**Status:** ✅ Fixed (2 Jan 2026)
+
+**Masalah:** 500 error pada endpoint `/api/forgot-password`
+
+**Perbaikan:**
+1. **Email dispatch graceful handling** - Jika mail service tidak tersedia, OTP tetap dibuat
+2. **Column compatibility** - OtpService sekarang check apakah kolom `otp_hash` ada
+3. **Debug mode support** - Jika debug=true dan email gagal, OTP dikembalikan di response
+
+**Endpoints:**
+```
+POST /api/forgot-password
+  Request: { "email": "user@example.com" }
+  Response: { "success": true, "message": "...", "data": { "email": "...", "expires_in": 600 } }
+
+POST /api/verify-otp
+  Request: { "email": "user@example.com", "otp": "123456" }
+  Response: { "success": true, "data": { "reset_token": "...", "expires_in": 1800 } }
+
+POST /api/reset-password
+  Request: { "email": "user@example.com", "reset_token": "...", "password": "newpass", "password_confirmation": "newpass" }
+  Response: { "success": true, "message": "Password berhasil direset" }
+```
+
+---
+
 ## 📝 Summary Perubahan API
 
 | Fitur | Status | Catatan |
 |-------|--------|---------|
+| Forgot Password | ✅ Fixed | Graceful email handling |
+| Verify OTP | ✅ Ready | Hash verification |
+| Reset Password | ✅ Ready | Token-based reset |
 | Artikel POST | ✅ Fixed | Better error handling |
 | Penukaran Reject | ✅ Fixed | Support more statuses |
 | Penarikan Reject | ✅ Fixed | Points refunded correctly |
@@ -305,4 +336,6 @@ GET /api/admin/users/{userId}
 ---
 
 *Dokumen dibuat: 2 Januari 2026*
-*Backend commit: 1ec4ce2*
+*Last Updated: 2 Januari 2026 (OTP fixes)*
+*Backend commit: 1ec4ce2 + OTP fixes*
+

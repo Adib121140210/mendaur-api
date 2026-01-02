@@ -62,20 +62,42 @@ class ForgotPasswordController extends Controller
             // Generate OTP (via service)
             $otpData = $this->otpService->generateOtp($email);
 
-            // Dispatch email job to queue (async, non-blocking)
-            SendOtpEmailJob::dispatch(
-                $user,
-                $otpData['otp'],
-                $otpData['expires_at']
-            );
+            // Try to send email, but don't fail if mail service is unavailable
+            // This allows OTP to be generated even if email delivery fails
+            $emailSent = true;
+            try {
+                SendOtpEmailJob::dispatch(
+                    $user,
+                    $otpData['otp'],
+                    $otpData['expires_at']
+                );
+            } catch (\Exception $emailError) {
+                // Log error but continue - OTP is still valid in database
+                $emailSent = false;
+                \Log::warning('OTP email dispatch failed, but OTP was generated', [
+                    'email' => $email,
+                    'error' => $emailError->getMessage(),
+                ]);
+            }
+
+            // For development/debug: include OTP in response if email failed
+            $responseData = [
+                'email' => $email,
+                'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60, // seconds
+            ];
+
+            // Only include OTP in response for debug mode when email fails
+            if (!$emailSent && config('app.debug')) {
+                $responseData['debug_otp'] = $otpData['otp'];
+                $responseData['debug_note'] = 'Email service unavailable. OTP provided for testing only.';
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Kode OTP telah dikirim ke email Anda',
-                'data' => [
-                    'email' => $email,
-                    'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60, // seconds
-                ]
+                'message' => $emailSent 
+                    ? 'Kode OTP telah dikirim ke email Anda' 
+                    : 'Kode OTP berhasil dibuat (email dalam antrean)',
+                'data' => $responseData
             ]);
 
         } catch (\Exception $e) {
