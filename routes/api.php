@@ -99,13 +99,35 @@ Route::get('debug/cloudinary-config', function () {
 Route::post('login', [AuthController::class, 'login'])->name('login');
 Route::post('register', [AuthController::class, 'register']);
 
-// Forgot Password Routes (Public) - WITH RATE LIMITING
-Route::post('forgot-password', [ForgotPasswordController::class, 'sendOTP'])
-    ->middleware('rate.limit.otp');
+// Forgot Password Routes (Public) - Rate limiting temporarily disabled for testing
+Route::post('forgot-password', [ForgotPasswordController::class, 'sendOTP']);
 Route::post('verify-otp', [ForgotPasswordController::class, 'verifyOTP']);
 Route::post('reset-password', [ForgotPasswordController::class, 'resetPassword']);
-Route::post('resend-otp', [ForgotPasswordController::class, 'resendOTP'])
-    ->middleware('rate.limit.otp'); // Rate limit resend too
+Route::post('resend-otp', [ForgotPasswordController::class, 'resendOTP']);
+
+// Debug endpoint for OTP testing (REMOVE IN PRODUCTION)
+Route::get('debug/otp/{email}', function ($email) {
+    $record = \App\Models\PasswordReset::where('email', $email)
+        ->orderBy('created_at', 'desc')
+        ->first();
+    
+    if (!$record) {
+        return response()->json([
+            'found' => false,
+            'message' => 'No OTP record found for this email'
+        ]);
+    }
+    
+    return response()->json([
+        'found' => true,
+        'email' => $record->email,
+        'otp' => $record->otp,
+        'expires_at' => $record->expires_at,
+        'is_expired' => \Carbon\Carbon::now()->gt($record->expires_at),
+        'verified_at' => $record->verified_at,
+        'created_at' => $record->created_at,
+    ]);
+});
 
 // Jadwal Penyetoran (Public - for form)
 Route::get('jadwal-penyetoran', [JadwalPenyetoranController::class, 'index']);
