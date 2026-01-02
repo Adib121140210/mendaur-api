@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Forgot Password Controller (REFACTORED - Clean Architecture)
- * 
+ *
  * Changes from old version (284 lines → ~150 lines):
  * - Validation moved to Form Requests
  * - Business logic moved to OtpService
@@ -39,7 +39,7 @@ class ForgotPasswordController extends Controller
     /**
      * Send OTP to user's email
      * POST /api/forgot-password
-     * 
+     *
      * @param SendOtpRequest $request (auto-validated)
      * @return \Illuminate\Http\JsonResponse
      */
@@ -66,56 +66,41 @@ class ForgotPasswordController extends Controller
             $mailDriver = config('mail.default');
             $isRealMailConfigured = !in_array($mailDriver, ['log', 'array', 'null']);
 
-            // Try to send email synchronously (not queued) for immediate delivery
-            $emailSent = false;
-            $emailError = null;
+            // Dispatch email to queue (non-blocking)
+            // Email will be sent in background, response returns immediately
             if ($isRealMailConfigured) {
                 try {
-                    // Use dispatchSync to send immediately without queue
-                    SendOtpEmailJob::dispatchSync(
+                    SendOtpEmailJob::dispatch(
                         $user,
                         $otpData['otp'],
                         $otpData['expires_at']
-                    );
-                    $emailSent = true;
+                    )->onQueue('default');
+                    
+                    \Log::info('OTP email job dispatched', ['email' => $email]);
                 } catch (\Exception $e) {
-                    $emailError = $e->getMessage();
-                    \Log::warning('OTP email send failed', [
+                    \Log::warning('OTP email dispatch failed', [
                         'email' => $email,
-                        'error' => $emailError,
+                        'error' => $e->getMessage(),
                     ]);
                 }
-            } else {
-                \Log::info('OTP generated (mail driver is log/array)', [
-                    'email' => $email,
-                    'otp' => $otpData['otp'], // Log OTP for debugging
-                ]);
             }
 
-            // Build response data
+            // Build response data - always include OTP for now (until email is confirmed working)
             $responseData = [
                 'email' => $email,
                 'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60, // seconds
+                'otp' => $otpData['otp'], // Always return OTP for testing
             ];
 
-            // Include OTP in response if mail is not configured or failed (for testing)
-            if (!$isRealMailConfigured || !$emailSent) {
-                $responseData['otp'] = $otpData['otp'];
-                if (!$isRealMailConfigured) {
-                    $responseData['note'] = 'Email service not configured. Use this OTP directly.';
-                } else if ($emailError) {
-                    $responseData['note'] = 'Email gagal dikirim. Gunakan OTP ini langsung.';
-                    if (config('app.debug')) {
-                        $responseData['email_error'] = $emailError;
-                    }
-                }
+            if (!$isRealMailConfigured) {
+                $responseData['note'] = 'Email service not configured.';
+            } else {
+                $responseData['note'] = 'OTP juga dikirim ke email (cek spam folder).';
             }
 
             return response()->json([
                 'success' => true,
-                'message' => $emailSent 
-                    ? 'Kode OTP telah dikirim ke email Anda' 
-                    : 'Kode OTP berhasil dibuat',
+                'message' => 'Kode OTP berhasil dibuat',
                 'data' => $responseData
             ]);
 
@@ -137,7 +122,7 @@ class ForgotPasswordController extends Controller
     /**
      * Verify OTP code
      * POST /api/verify-otp
-     * 
+     *
      * @param VerifyOtpRequest $request (auto-validated)
      * @return \Illuminate\Http\JsonResponse
      */
@@ -188,7 +173,7 @@ class ForgotPasswordController extends Controller
     /**
      * Reset password with verified OTP
      * POST /api/reset-password
-     * 
+     *
      * @param ResetPasswordRequest $request (auto-validated)
      * @return \Illuminate\Http\JsonResponse
      */
@@ -250,7 +235,7 @@ class ForgotPasswordController extends Controller
     /**
      * Resend OTP (optional endpoint)
      * POST /api/resend-otp
-     * 
+     *
      * @param SendOtpRequest $request (auto-validated, rate limited by middleware)
      * @return \Illuminate\Http\JsonResponse
      */
