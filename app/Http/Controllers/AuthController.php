@@ -103,8 +103,11 @@ class AuthController extends Controller
             'nama' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'no_hp' => 'required|string',
+            'no_hp' => 'required|string|unique:users,no_hp',
             'alamat' => 'nullable|string',
+        ], [
+            'email.unique' => 'Email sudah terdaftar',
+            'no_hp.unique' => 'Nomor HP sudah terdaftar',
         ]);
 
         try {
