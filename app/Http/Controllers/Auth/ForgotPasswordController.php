@@ -62,40 +62,30 @@ class ForgotPasswordController extends Controller
             // Generate OTP (via service)
             $otpData = $this->otpService->generateOtp($email);
 
-            // Check if real email service is configured
-            $mailDriver = config('mail.default');
-            $isRealMailConfigured = !in_array($mailDriver, ['log', 'array', 'null']);
-
-            // Dispatch email to queue (non-blocking)
-            // Email will be sent in background, response returns immediately
-            if ($isRealMailConfigured) {
-                try {
-                    SendOtpEmailJob::dispatch(
-                        $user,
-                        $otpData['otp'],
-                        $otpData['expires_at']
-                    )->onQueue('default');
-                    
-                    \Log::info('OTP email job dispatched', ['email' => $email]);
-                } catch (\Exception $e) {
-                    \Log::warning('OTP email dispatch failed', [
-                        'email' => $email,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            // Build response data - always include OTP for now (until email is confirmed working)
+            // Build response data - always include OTP
             $responseData = [
                 'email' => $email,
                 'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60, // seconds
-                'otp' => $otpData['otp'], // Always return OTP for testing
+                'otp' => $otpData['otp'], // Return OTP directly
             ];
 
-            if (!$isRealMailConfigured) {
-                $responseData['note'] = 'Email service not configured.';
+            // Try to send email in background (fire and forget)
+            $mailDriver = config('mail.default');
+            $isRealMailConfigured = !in_array($mailDriver, ['log', 'array', 'null']);
+            
+            if ($isRealMailConfigured) {
+                // Send email after response using terminating callback
+                app()->terminating(function () use ($user, $otpData) {
+                    try {
+                        $job = new SendOtpEmailJob($user, $otpData['otp'], $otpData['expires_at']);
+                        $job->handle();
+                    } catch (\Exception $e) {
+                        \Log::error('Background OTP email failed', ['error' => $e->getMessage()]);
+                    }
+                });
+                $responseData['email_status'] = 'sending';
             } else {
-                $responseData['note'] = 'OTP juga dikirim ke email (cek spam folder).';
+                $responseData['email_status'] = 'not_configured';
             }
 
             return response()->json([

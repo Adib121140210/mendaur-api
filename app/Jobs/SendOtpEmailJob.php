@@ -4,15 +4,18 @@ namespace App\Jobs;
 
 use App\Models\User;
 use App\Mail\ForgotPasswordOTP;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-class SendOtpEmailJob implements ShouldQueue
+/**
+ * SendOtpEmailJob - Sends OTP email directly (no queue)
+ * Removed ShouldQueue to send email synchronously without queue worker
+ */
+class SendOtpEmailJob
 {
-    use Queueable;
+    use Dispatchable;
 
     /**
      * The user instance.
@@ -30,16 +33,6 @@ class SendOtpEmailJob implements ShouldQueue
     protected Carbon $expiresAt;
 
     /**
-     * The number of times the job may be attempted.
-     */
-    public int $tries = 3;
-
-    /**
-     * The number of seconds to wait before retrying the job.
-     */
-    public int $backoff = 10;
-
-    /**
      * Create a new job instance.
      */
     public function __construct(User $user, string $otp, Carbon $expiresAt)
@@ -50,11 +43,14 @@ class SendOtpEmailJob implements ShouldQueue
     }
 
     /**
-     * Execute the job.
+     * Execute the job - send email directly
      */
     public function handle(): void
     {
         try {
+            // Set shorter timeout for SMTP
+            config(['mail.mailers.smtp.timeout' => 30]);
+            
             Mail::to($this->user->email)->send(
                 new ForgotPasswordOTP($this->user, $this->otp, $this->expiresAt)
             );
@@ -67,26 +63,8 @@ class SendOtpEmailJob implements ShouldQueue
             Log::error('Failed to send OTP email', [
                 'email' => $this->user->email,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
-
-            // Re-throw to trigger retry mechanism
-            throw $e;
+            // Don't re-throw - let the request complete even if email fails
         }
-    }
-
-    /**
-     * Handle a job failure.
-     */
-    public function failed(\Throwable $exception): void
-    {
-        Log::error('OTP email job failed after all retries', [
-            'email' => $this->user->email,
-            'error' => $exception->getMessage(),
-        ]);
-
-        // Optional: Send notification to admin
-        // Notification::route('slack', config('logging.channels.slack.url'))
-        //     ->notify(new OtpEmailFailedNotification($this->user));
     }
 }
