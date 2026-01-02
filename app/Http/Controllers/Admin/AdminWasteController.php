@@ -8,6 +8,7 @@ use App\Models\TabungSampah;
 use App\Models\User;
 use App\Models\AuditLog;
 use App\Models\LogAktivitas;
+use App\Models\Notifikasi;
 use App\Services\PointService;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -242,6 +243,17 @@ class AdminWasteController extends Controller
                 'tanggal' => now(),
             ]);
 
+            // Auto create notification for user
+            Notifikasi::create([
+                'user_id' => $deposit->user_id,
+                'judul' => 'Penyetoran Sampah Disetujui ✅',
+                'pesan' => "Penyetoran sampah Anda seberat {$deposit->berat_kg} kg telah disetujui. Anda mendapatkan {$request->poin_diberikan} poin!",
+                'tipe' => 'success',
+                'related_id' => $deposit->tabung_sampah_id,
+                'related_type' => 'penyetoran_sampah',
+                'is_read' => false,
+            ]);
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Deposit approved successfully',
@@ -321,6 +333,17 @@ class AdminWasteController extends Controller
                 'deskripsi' => 'Penyetoran sampah ditolak. Alasan: ' . $request->alasan_penolakan,
                 'poin_perubahan' => 0,
                 'tanggal' => now(),
+            ]);
+
+            // Auto create notification for user
+            Notifikasi::create([
+                'user_id' => $deposit->user_id,
+                'judul' => 'Penyetoran Sampah Ditolak ❌',
+                'pesan' => "Penyetoran sampah Anda seberat {$deposit->berat_kg} kg ditolak. Alasan: {$request->alasan_penolakan}",
+                'tipe' => 'warning',
+                'related_id' => $deposit->tabung_sampah_id,
+                'related_type' => 'penyetoran_sampah',
+                'is_read' => false,
             ]);
 
             return response()->json([

@@ -205,9 +205,11 @@ class AdminPenarikanTunaiController extends Controller
 
                 Notifikasi::create([
                     'user_id' => $withdrawal->user_id,
-                    'judul' => 'Penarikan Tunai Disetujui',
+                    'judul' => 'Penarikan Tunai Disetujui ✅',
                     'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " telah disetujui dan sedang diproses. Dana akan ditransfer ke rekening Anda dalam 1-3 hari kerja.",
-                    'tipe' => 'penarikan_tunai',
+                    'tipe' => 'success',
+                    'related_id' => $withdrawal->penarikan_tunai_id,
+                    'related_type' => 'penarikan_tunai',
                     'is_read' => false
                 ]);
 
@@ -317,9 +319,11 @@ class AdminPenarikanTunaiController extends Controller
                 // Send notification to user
                 Notifikasi::create([
                     'user_id' => $withdrawal->user_id,
-                    'judul' => 'Penarikan Tunai Ditolak',
+                    'judul' => 'Penarikan Tunai Ditolak ❌',
                     'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " ditolak. Alasan: {$validated['catatan_admin']}. Poin sebesar {$withdrawal->jumlah_poin} telah dikembalikan ke saldo Anda.",
-                    'tipe' => 'penarikan_tunai',
+                    'tipe' => 'warning',
+                    'related_id' => $withdrawal->penarikan_tunai_id,
+                    'related_type' => 'penarikan_tunai',
                     'is_read' => false
                 ]);
 

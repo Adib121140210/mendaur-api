@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Produk;
 use App\Models\AuditLog;
 use App\Models\PoinTransaksi;
+use App\Models\Notifikasi;
 use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
@@ -254,6 +255,17 @@ class AdminPenukaranProdukController extends Controller
 
             DB::commit();
 
+            // Auto create notification for user
+            Notifikasi::create([
+                'user_id' => $exchange->user_id,
+                'judul' => 'Penukaran Produk Disetujui ✅',
+                'pesan' => "Penukaran produk \"{$exchange->nama_produk}\" telah disetujui." . ($validated['resi_pengiriman'] ?? null ? " Resi: {$validated['resi_pengiriman']}" : " Silakan ambil produk Anda."),
+                'tipe' => 'success',
+                'related_id' => $exchange->penukaran_produk_id,
+                'related_type' => 'penukaran_produk',
+                'is_read' => false,
+            ]);
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Exchange approved successfully',
@@ -375,6 +387,17 @@ class AdminPenukaranProdukController extends Controller
             ]);
 
             DB::commit();
+
+            // Auto create notification for user
+            Notifikasi::create([
+                'user_id' => $exchange->user_id,
+                'judul' => 'Penukaran Produk Ditolak ❌',
+                'pesan' => "Penukaran produk \"{$exchange->nama_produk}\" ditolak. Alasan: {$alasanPenolakan}. Poin sebesar {$exchange->poin_digunakan} telah dikembalikan ke saldo Anda.",
+                'tipe' => 'warning',
+                'related_id' => $exchange->penukaran_produk_id,
+                'related_type' => 'penukaran_produk',
+                'is_read' => false,
+            ]);
 
             return response()->json([
                 'status' => 'success',

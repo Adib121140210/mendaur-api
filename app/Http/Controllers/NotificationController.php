@@ -241,9 +241,19 @@ class NotificationController extends Controller
             $notification = Notifikasi::create($validated);
 
             return response()->json([
-                'status' => 'success',
-                'message' => 'Notification created',
-                'data' => $notification
+                'success' => true,
+                'message' => 'Notification created successfully',
+                'data' => [
+                    'notifikasi_id' => $notification->notifikasi_id,
+                    'user_id' => $notification->user_id,
+                    'judul' => $notification->judul,
+                    'pesan' => $notification->pesan,
+                    'tipe' => $notification->tipe,
+                    'is_read' => $notification->is_read,
+                    'related_id' => $notification->related_id,
+                    'related_type' => $notification->related_type,
+                    'created_at' => $notification->created_at,
+                ]
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
