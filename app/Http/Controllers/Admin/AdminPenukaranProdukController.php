@@ -337,7 +337,7 @@ class AdminPenukaranProdukController extends Controller
             // CATATAN: actual_poin dikembalikan, display_poin TIDAK berubah
             // karena display_poin tidak dikurangi saat penukaran
             $user = $exchange->user;
-            
+
             if ($user) {
                 PointService::refundRedemptionPoints(
                     $user->user_id,

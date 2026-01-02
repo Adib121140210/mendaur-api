@@ -324,7 +324,7 @@ class DashboardAdminController extends Controller
             $totalRedemptions = PenukaranProduk::whereIn('status', ['approved', 'completed', 'selesai'])
                 ->whereYear('created_at', $year)
                 ->sum('poin_digunakan');
-                
+
             $totalRedemptionsCount = PenukaranProduk::whereIn('status', ['approved', 'completed', 'selesai'])
                 ->whereYear('created_at', $year)
                 ->count();

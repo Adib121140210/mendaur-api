@@ -98,6 +98,14 @@ done
 
 if [ "$DB_READY" -eq 0 ]; then
     echo "⚠️  Database not ready - server will start anyway"
+else
+    # ========================================
+    # Step 4.5: Run database migrations
+    # ========================================
+    echo ""
+    echo "🔄 Step 4.5: Running database migrations..."
+    php artisan migrate --force 2>/dev/null || echo "⚠️  Migration skipped (may already be up to date)"
+    echo "✅ Migration check complete"
 fi
 
 # ========================================

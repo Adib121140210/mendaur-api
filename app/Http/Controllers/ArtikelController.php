@@ -78,7 +78,7 @@ class ArtikelController extends Controller
 
             // Generate slug
             $validated['slug'] = Str::slug($validated['judul']);
-            
+
             // Ensure unique slug
             $originalSlug = $validated['slug'];
             $counter = 1;
@@ -90,7 +90,7 @@ class ArtikelController extends Controller
             // Handle file upload to Cloudinary
             if ($request->hasFile('foto_cover')) {
                 $file = $request->file('foto_cover');
-                
+
                 try {
                     $cloudinaryService = new CloudinaryService();
                     $uploadResult = $cloudinaryService->uploadImage($file, 'artikel');
@@ -124,7 +124,7 @@ class ArtikelController extends Controller
                 'message' => 'Artikel berhasil ditambahkan',
                 'data' => new ArtikelResource($artikel),
             ], 201);
-            
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'status' => 'error',
@@ -136,7 +136,7 @@ class ArtikelController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal menambahkan artikel: ' . $e->getMessage()
