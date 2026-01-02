@@ -107,26 +107,44 @@ class AuthController extends Controller
             'alamat' => 'nullable|string',
         ]);
 
-        $user = User::create([
-            'nama' => $request->nama,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'no_hp' => $request->no_hp,
-            'alamat' => $request->alamat,
-            'actual_poin' => 0,
-            'total_setor_sampah' => 0,
-            'level' => 'Pemula',
-            'role_id' => 1,
-        ]);
+        try {
+            $user = User::create([
+                'nama' => $request->nama,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'no_hp' => $request->no_hp,
+                'alamat' => $request->alamat,
+                'actual_poin' => 0,
+                'display_poin' => 0,
+                'total_setor_sampah' => 0,
+                'level' => 'Pemula',
+                'role_id' => 1,
+                'status' => 'active',
+                'tipe_nasabah' => 'konvensional',
+            ]);
 
-        // Load role for response
-        $user->load('role.permissions');
+            // Load role for response
+            $user->load('role.permissions');
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Registrasi berhasil',
-            'data' => (new UserResource($user))->resolve(request()),
-        ], 201);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Registrasi berhasil',
+                'data' => (new UserResource($user))->resolve(request()),
+            ], 201);
+            
+        } catch (\Exception $e) {
+            \Log::error('Registration failed', [
+                'email' => $request->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Registrasi gagal. Silakan coba lagi.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     /**
