@@ -62,41 +62,51 @@ class ForgotPasswordController extends Controller
             // Generate OTP (via service)
             $otpData = $this->otpService->generateOtp($email);
 
+            // Check if real email service is configured
+            $mailDriver = config('mail.default');
+            $isRealMailConfigured = !in_array($mailDriver, ['log', 'array', 'null']);
+
             // Try to send email, but don't fail if mail service is unavailable
-            // This allows OTP to be generated even if email delivery fails
-            $emailSent = true;
-            try {
-                SendOtpEmailJob::dispatch(
-                    $user,
-                    $otpData['otp'],
-                    $otpData['expires_at']
-                );
-            } catch (\Exception $emailError) {
-                // Log error but continue - OTP is still valid in database
-                $emailSent = false;
-                \Log::warning('OTP email dispatch failed, but OTP was generated', [
+            $emailSent = false;
+            if ($isRealMailConfigured) {
+                try {
+                    SendOtpEmailJob::dispatch(
+                        $user,
+                        $otpData['otp'],
+                        $otpData['expires_at']
+                    );
+                    $emailSent = true;
+                } catch (\Exception $emailError) {
+                    \Log::warning('OTP email dispatch failed', [
+                        'email' => $email,
+                        'error' => $emailError->getMessage(),
+                    ]);
+                }
+            } else {
+                \Log::info('OTP generated (mail driver is log/array)', [
                     'email' => $email,
-                    'error' => $emailError->getMessage(),
+                    'otp' => $otpData['otp'], // Log OTP for debugging
                 ]);
             }
 
-            // For development/debug: include OTP in response if email failed
+            // Build response data
             $responseData = [
                 'email' => $email,
                 'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60, // seconds
             ];
 
-            // Only include OTP in response for debug mode when email fails
-            if (!$emailSent && config('app.debug')) {
-                $responseData['debug_otp'] = $otpData['otp'];
-                $responseData['debug_note'] = 'Email service unavailable. OTP provided for testing only.';
+            // Include OTP in response if mail is not configured (for testing)
+            // or if debug mode and email failed
+            if (!$isRealMailConfigured || (!$emailSent && config('app.debug'))) {
+                $responseData['otp'] = $otpData['otp'];
+                $responseData['note'] = 'Email service not configured. Use this OTP directly.';
             }
 
             return response()->json([
                 'success' => true,
                 'message' => $emailSent 
                     ? 'Kode OTP telah dikirim ke email Anda' 
-                    : 'Kode OTP berhasil dibuat (email dalam antrean)',
+                    : 'Kode OTP berhasil dibuat',
                 'data' => $responseData
             ]);
 
