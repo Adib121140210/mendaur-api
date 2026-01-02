@@ -66,20 +66,23 @@ class ForgotPasswordController extends Controller
             $mailDriver = config('mail.default');
             $isRealMailConfigured = !in_array($mailDriver, ['log', 'array', 'null']);
 
-            // Try to send email, but don't fail if mail service is unavailable
+            // Try to send email synchronously (not queued) for immediate delivery
             $emailSent = false;
+            $emailError = null;
             if ($isRealMailConfigured) {
                 try {
-                    SendOtpEmailJob::dispatch(
+                    // Use dispatchSync to send immediately without queue
+                    SendOtpEmailJob::dispatchSync(
                         $user,
                         $otpData['otp'],
                         $otpData['expires_at']
                     );
                     $emailSent = true;
-                } catch (\Exception $emailError) {
-                    \Log::warning('OTP email dispatch failed', [
+                } catch (\Exception $e) {
+                    $emailError = $e->getMessage();
+                    \Log::warning('OTP email send failed', [
                         'email' => $email,
-                        'error' => $emailError->getMessage(),
+                        'error' => $emailError,
                     ]);
                 }
             } else {
@@ -95,11 +98,17 @@ class ForgotPasswordController extends Controller
                 'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60, // seconds
             ];
 
-            // Include OTP in response if mail is not configured (for testing)
-            // or if debug mode and email failed
-            if (!$isRealMailConfigured || (!$emailSent && config('app.debug'))) {
+            // Include OTP in response if mail is not configured or failed (for testing)
+            if (!$isRealMailConfigured || !$emailSent) {
                 $responseData['otp'] = $otpData['otp'];
-                $responseData['note'] = 'Email service not configured. Use this OTP directly.';
+                if (!$isRealMailConfigured) {
+                    $responseData['note'] = 'Email service not configured. Use this OTP directly.';
+                } else if ($emailError) {
+                    $responseData['note'] = 'Email gagal dikirim. Gunakan OTP ini langsung.';
+                    if (config('app.debug')) {
+                        $responseData['email_error'] = $emailError;
+                    }
+                }
             }
 
             return response()->json([
