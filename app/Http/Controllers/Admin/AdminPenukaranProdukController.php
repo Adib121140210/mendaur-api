@@ -317,28 +317,42 @@ class AdminPenukaranProdukController extends Controller
 
         $exchange = PenukaranProduk::where('penukaran_produk_id', $exchangeId)->firstOrFail();
 
-        if ($exchange->status !== 'pending') {
+        // Allow reject for pending and approved status (not yet completed/cancelled)
+        $rejectableStatuses = ['pending', 'approved', 'diproses', 'dikirim'];
+        if (!in_array($exchange->status, $rejectableStatuses)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Only pending exchanges can be rejected',
-                'current_status' => $exchange->status
+                'message' => 'Penukaran dengan status "' . $exchange->status . '" tidak dapat ditolak',
+                'current_status' => $exchange->status,
+                'allowed_statuses' => $rejectableStatuses
             ], 400);
         }
 
         DB::beginTransaction();
         try {
             $oldData = $exchange->toArray();
+            $wasApproved = in_array($exchange->status, ['approved', 'diproses', 'dikirim']);
 
             // Refund points using PointService
             // CATATAN: actual_poin dikembalikan, display_poin TIDAK berubah
             // karena display_poin tidak dikurangi saat penukaran
             $user = $exchange->user;
-            PointService::refundRedemptionPoints(
-                $user,
-                $exchange->poin_digunakan,
-                $exchange->penukaran_produk_id,
-                "Pengembalian poin dari penukaran produk yang ditolak"
-            );
+            
+            if ($user) {
+                PointService::refundRedemptionPoints(
+                    $user->user_id,
+                    $exchange->poin_digunakan,
+                    $exchange->penukaran_produk_id
+                );
+            }
+
+            // If was approved, restore stock
+            if ($wasApproved) {
+                $product = Produk::find($exchange->produk_id);
+                if ($product) {
+                    $product->increment('stok', $exchange->jumlah);
+                }
+            }
 
             $exchange->update([
                 'status' => 'cancelled',

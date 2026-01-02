@@ -27,7 +27,7 @@ echo "Found {$produks->count()} produk with local storage paths\n";
 foreach ($produks as $produk) {
     echo "  - Produk #{$produk->produk_id} ({$produk->nama}): {$produk->foto}\n";
     echo "    → Setting foto to NULL (file tidak ada di Railway)\n";
-    
+
     $produk->foto = null;
     $produk->save();
 }
@@ -43,7 +43,7 @@ echo "Found {$artikels->count()} artikel with local storage paths\n";
 foreach ($artikels as $artikel) {
     echo "  - Artikel #{$artikel->artikel_id} ({$artikel->judul}): {$artikel->foto_cover}\n";
     echo "    → Setting foto_cover to NULL\n";
-    
+
     $artikel->foto_cover = null;
     $artikel->save();
 }

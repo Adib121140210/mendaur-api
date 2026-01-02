@@ -44,7 +44,7 @@ class MigratePhotosToCloudinary extends Command
     private function migrateProdukPhotos(CloudinaryService $cloudinaryService)
     {
         $this->info('Migrating Produk photos...');
-        
+
         $produks = Produk::whereNotNull('foto')
             ->where('foto', 'NOT LIKE', 'http%')
             ->get();
@@ -59,7 +59,7 @@ class MigratePhotosToCloudinary extends Command
     private function migrateArtikelPhotos(CloudinaryService $cloudinaryService)
     {
         $this->info('Migrating Artikel photos...');
-        
+
         $artikels = Artikel::whereNotNull('foto_cover')
             ->where('foto_cover', 'NOT LIKE', 'http%')
             ->get();
@@ -74,7 +74,7 @@ class MigratePhotosToCloudinary extends Command
     private function migrateTabungSampahPhotos(CloudinaryService $cloudinaryService)
     {
         $this->info('Migrating TabungSampah photos...');
-        
+
         $tabungSampahs = TabungSampah::whereNotNull('foto_sampah')
             ->where('foto_sampah', 'NOT LIKE', 'http%')
             ->get();
@@ -89,7 +89,7 @@ class MigratePhotosToCloudinary extends Command
     private function migrateUserPhotos(CloudinaryService $cloudinaryService)
     {
         $this->info('Migrating User photos...');
-        
+
         $users = User::whereNotNull('foto_profil')
             ->where('foto_profil', 'NOT LIKE', 'http%')
             ->get();
@@ -104,7 +104,7 @@ class MigratePhotosToCloudinary extends Command
     private function migratePhoto($model, $photoField, $publicIdField, $folder, CloudinaryService $cloudinaryService)
     {
         $localPath = $model->$photoField;
-        
+
         // Skip if already Cloudinary URL
         if (str_starts_with($localPath, 'http')) {
             return;
@@ -114,7 +114,7 @@ class MigratePhotosToCloudinary extends Command
 
         if (!file_exists($fullPath)) {
             $this->warn("File not found: {$localPath} - Setting to null for {$model->getTable()} ID: {$model->getKey()}");
-            
+
             // Set photo to null since file doesn't exist
             $model->$photoField = null;
             $model->save();

@@ -102,27 +102,27 @@ class AdminLeaderboardController extends Controller
     {
         try {
             $settings = $this->getLeaderboardSettings();
-            
+
             // Total peserta (active nasabah with any poin)
             $totalPeserta = User::where('status', 'active')
                 ->where('role_id', 1)
                 ->count();
-            
+
             // Total poin (sum of display_poin for leaderboard)
             $totalPoin = User::where('status', 'active')
                 ->where('role_id', 1)
                 ->sum('display_poin');
-            
+
             // Total sampah (from tabung_sampah approved)
             $totalSampah = DB::table('tabung_sampah')
                 ->where('status', 'approved')
                 ->sum('berat_kg');
-            
+
             // Calculate days to reset
             $nextResetDate = $settings['custom_reset_date'] ?? $this->calculateNextResetDate($settings['reset_period']);
             $daysToReset = Carbon::now()->diffInDays(Carbon::parse($nextResetDate), false);
             $daysToReset = max(0, $daysToReset); // Ensure non-negative
-            
+
             // Reset history count
             $resetCount = \App\Models\AuditLog::where('action_type', 'reset_leaderboard')->count();
 

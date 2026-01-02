@@ -312,33 +312,54 @@ class DashboardAdminController extends Controller
                 ->sum('poin_didapat');
 
             // User statistics
-            $totalUsers = User::count();
+            $totalUsers = User::where('role_id', 1)->count(); // Only nasabah
+            $totalAllUsers = User::count();
             $activeUsers = User::where('updated_at', '>=', Carbon::now()->subDays(30))
                 ->count();
+            $newUsersThisMonth = User::whereYear('created_at', $year)
+                ->whereMonth('created_at', $month)
+                ->count();
 
-            // Redemptions
-            $totalRedemptions = PenukaranProduk::where('status', 'completed')
+            // Redemptions - fix column name
+            $totalRedemptions = PenukaranProduk::whereIn('status', ['approved', 'completed', 'selesai'])
                 ->whereYear('created_at', $year)
-                ->sum('total_poin_digunakan');
+                ->sum('poin_digunakan');
+                
+            $totalRedemptionsCount = PenukaranProduk::whereIn('status', ['approved', 'completed', 'selesai'])
+                ->whereYear('created_at', $year)
+                ->count();
+
+            // Pending counts
+            $pendingDeposits = TabungSampah::where('status', 'pending')->count();
+            $pendingRedemptions = PenukaranProduk::where('status', 'pending')->count();
 
             return response()->json([
                 'status' => 'success',
                 'data' => [
                     'waste' => [
-                        'yearly_total_kg' => round($totalWaste, 2),
-                        'yearly_total_count' => $totalWasteCount,
-                        'monthly_total_kg' => round($monthlyWaste, 2),
+                        'yearly_total_kg' => round((float) $totalWaste, 2),
+                        'yearly_total_count' => (int) $totalWasteCount,
+                        'monthly_total_kg' => round((float) $monthlyWaste, 2),
+                        'total_formatted' => $this->formatWeight($totalWaste),
                     ],
                     'points' => [
-                        'yearly_total' => $totalPoints,
-                        'monthly_total' => $monthlyPoints,
+                        'yearly_total' => (int) $totalPoints,
+                        'monthly_total' => (int) $monthlyPoints,
+                        'total_distributed' => (int) User::sum('display_poin'),
                     ],
                     'users' => [
-                        'total' => $totalUsers,
-                        'active_30days' => $activeUsers,
+                        'total' => (int) $totalAllUsers,
+                        'total_nasabah' => (int) $totalUsers,
+                        'active_30days' => (int) $activeUsers,
+                        'new_this_month' => (int) $newUsersThisMonth,
                     ],
                     'redemptions' => [
-                        'yearly_total_points_redeemed' => $totalRedemptions,
+                        'yearly_total_points_redeemed' => (int) $totalRedemptions,
+                        'yearly_total_count' => (int) $totalRedemptionsCount,
+                    ],
+                    'pending' => [
+                        'deposits' => (int) $pendingDeposits,
+                        'redemptions' => (int) $pendingRedemptions,
                     ]
                 ]
             ]);
@@ -497,5 +518,16 @@ class DashboardAdminController extends Controller
             'users_active' => $waste->pluck('user_id')->unique()->count(),
             'daily_breakdown' => $dailyBreakdown,
         ];
+    }
+
+    /**
+     * Format weight with proper unit (kg or ton)
+     */
+    private function formatWeight(float $weight): string
+    {
+        if ($weight >= 1000) {
+            return number_format($weight / 1000, 2, ',', '.') . ' Ton';
+        }
+        return number_format($weight, 2, ',', '.') . ' Kg';
     }
 }

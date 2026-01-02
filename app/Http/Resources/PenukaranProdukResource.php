@@ -60,7 +60,7 @@ class PenukaranProdukResource extends JsonResource
     private function getProductPhotoUrl(): ?string
     {
         $foto = $this->produk?->foto;
-        
+
         if (empty($foto)) {
             return null;
         }
