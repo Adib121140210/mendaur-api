@@ -62,36 +62,16 @@ class ForgotPasswordController extends Controller
             // Generate OTP (via service)
             $otpData = $this->otpService->generateOtp($email);
 
-            // Build response data - always include OTP
-            $responseData = [
-                'email' => $email,
-                'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60, // seconds
-                'otp' => $otpData['otp'], // Return OTP directly
-            ];
-
-            // Try to send email in background (fire and forget)
-            $mailDriver = config('mail.default');
-            $isRealMailConfigured = !in_array($mailDriver, ['log', 'array', 'null']);
-            
-            if ($isRealMailConfigured) {
-                // Send email after response using terminating callback
-                app()->terminating(function () use ($user, $otpData) {
-                    try {
-                        $job = new SendOtpEmailJob($user, $otpData['otp'], $otpData['expires_at']);
-                        $job->handle();
-                    } catch (\Exception $e) {
-                        \Log::error('Background OTP email failed', ['error' => $e->getMessage()]);
-                    }
-                });
-                $responseData['email_status'] = 'sending';
-            } else {
-                $responseData['email_status'] = 'not_configured';
-            }
-
+            // Return OTP directly in response (email disabled for performance)
+            // Email sending causes timeout issues on Railway serverless
             return response()->json([
                 'success' => true,
                 'message' => 'Kode OTP berhasil dibuat',
-                'data' => $responseData
+                'data' => [
+                    'email' => $email,
+                    'expires_in' => OtpService::OTP_EXPIRY_MINUTES * 60,
+                    'otp' => $otpData['otp'],
+                ]
             ]);
 
         } catch (\Exception $e) {
