@@ -7,6 +7,7 @@ use App\Models\PenarikanTunai;
 use App\Models\Notifikasi;
 use App\Models\AuditLog;
 use App\Models\PoinTransaksi;
+use App\Models\User;
 use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -241,11 +242,9 @@ class AdminPenarikanTunaiController extends Controller
     }
 
     // PATCH /api/admin/penarikan-tunai/{id}/reject
-    // Refund actual_poin, display_poin tidak berubah
     public function reject(Request $request, $withdrawalId)
     {
         try {
-            // RBAC: Admin+ only
             if (!$request->user()->isAdminUser()) {
                 return response()->json([
                     'success' => false,
@@ -257,12 +256,11 @@ class AdminPenarikanTunaiController extends Controller
                 'catatan_admin' => 'required|string|max:500'
             ]);
 
-            // FIX: Use correct primary key
-            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $withdrawalId)
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', (int) $withdrawalId)
                 ->with('user')
+                ->lockForUpdate()
                 ->firstOrFail();
 
-            // Check if already processed
             if ($withdrawal->status !== 'pending') {
                 return response()->json([
                     'success' => false,
@@ -270,19 +268,25 @@ class AdminPenarikanTunaiController extends Controller
                 ], 400);
             }
 
+            $userId = (int) $withdrawal->user_id;
+            $jumlahPoin = (int) $withdrawal->jumlah_poin;
+            $penarikanTunaiId = (int) $withdrawal->penarikan_tunai_id;
+
+            \Log::info('Processing withdrawal rejection', [
+                'withdrawal_id' => $penarikanTunaiId,
+                'user_id' => $userId,
+                'jumlah_poin' => $jumlahPoin,
+                'url_param_id' => $withdrawalId,
+            ]);
+
             DB::beginTransaction();
             try {
-                // CRITICAL: Use PointService to refund points
-                // This will:
-                // - Update ONLY actual_poin (NOT display_poin)
-                // - Record transaction in poin_transaksis with POSITIVE value (refund)
                 PointService::refundWithdrawalPoints(
-                    (int) $withdrawal->user_id,
-                    (int) $withdrawal->jumlah_poin,
-                    (int) $withdrawal->penarikan_tunai_id
+                    $userId,
+                    $jumlahPoin,
+                    $penarikanTunaiId
                 );
 
-                // Update withdrawal status
                 $withdrawal->update([
                     'status' => 'rejected',
                     'catatan_admin' => $validated['catatan_admin'],
@@ -290,47 +294,51 @@ class AdminPenarikanTunaiController extends Controller
                     'processed_at' => now()
                 ]);
 
-                // Log the action
                 AuditLog::create([
                     'admin_id' => auth()->user()->user_id,
                     'action_type' => 'reject_withdrawal',
                     'resource_type' => 'PenarikanTunai',
-                    'resource_id' => $withdrawalId,
+                    'resource_id' => $penarikanTunaiId,
                     'old_values' => ['status' => 'pending'],
-                    'new_values' => ['status' => 'rejected'],
+                    'new_values' => ['status' => 'rejected', 'points_refunded' => $jumlahPoin],
                     'reason' => $validated['catatan_admin'],
                     'ip_address' => request()->ip(),
                     'user_agent' => request()->userAgent(),
                     'status' => 'success'
                 ]);
 
-                // Send notification to user
                 Notifikasi::create([
-                    'user_id' => $withdrawal->user_id,
+                    'user_id' => $userId,
                     'judul' => 'Penarikan Tunai Ditolak ❌',
-                    'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " ditolak. Alasan: {$validated['catatan_admin']}. Poin sebesar {$withdrawal->jumlah_poin} telah dikembalikan ke saldo Anda.",
+                    'pesan' => "Penarikan Rp " . number_format($withdrawal->jumlah_rupiah, 0, ',', '.') . " ditolak. Alasan: {$validated['catatan_admin']}. Poin sebesar {$jumlahPoin} telah dikembalikan ke saldo Anda.",
                     'tipe' => 'warning',
-                    'related_id' => $withdrawal->penarikan_tunai_id,
+                    'related_id' => $penarikanTunaiId,
                     'related_type' => 'penarikan_tunai',
                     'is_read' => false
                 ]);
 
                 DB::commit();
 
-                // Refresh user to get updated poin
-                $withdrawal->user->refresh();
+                $user = User::find($userId);
+
+                \Log::info('Withdrawal rejection completed', [
+                    'withdrawal_id' => $penarikanTunaiId,
+                    'user_id' => $userId,
+                    'points_refunded' => $jumlahPoin,
+                    'user_actual_poin_after' => $user->actual_poin,
+                ]);
 
                 return response()->json([
                     'success' => true,
                     'message' => 'Penarikan tunai ditolak dan poin dikembalikan',
                     'data' => [
-                        'id' => $withdrawal->penarikan_tunai_id,
-                        'status' => $withdrawal->status,
-                        'catatan_admin' => $withdrawal->catatan_admin,
-                        'processed_at' => $withdrawal->processed_at,
-                        'points_refunded' => $withdrawal->jumlah_poin,
-                        'user_actual_poin' => $withdrawal->user->actual_poin,
-                        'user_display_poin' => $withdrawal->user->display_poin, // Should remain unchanged
+                        'id' => $penarikanTunaiId,
+                        'status' => 'rejected',
+                        'catatan_admin' => $validated['catatan_admin'],
+                        'processed_at' => now()->toISOString(),
+                        'points_refunded' => $jumlahPoin,
+                        'user_actual_poin' => $user->actual_poin,
+                        'user_display_poin' => $user->display_poin,
                     ]
                 ]);
 
@@ -347,22 +355,20 @@ class AdminPenarikanTunaiController extends Controller
         } catch (\Exception $e) {
             \Log::error('Withdrawal rejection failed', [
                 'id' => $withdrawalId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan',
-                'error' => $e->getMessage()
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
         }
     }
 
     // DELETE /api/admin/penarikan-tunai/{id}
-    // Refund poin sebelum delete
     public function destroy(Request $request, $withdrawalId)
     {
         try {
-            // RBAC: Admin+ only
             if (!$request->user()->isAdminUser()) {
                 return response()->json([
                     'success' => false,
@@ -370,12 +376,11 @@ class AdminPenarikanTunaiController extends Controller
                 ], 403);
             }
 
-            // FIX: Use correct primary key
-            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', $withdrawalId)
+            $withdrawal = PenarikanTunai::where('penarikan_tunai_id', (int) $withdrawalId)
                 ->with('user')
+                ->lockForUpdate()
                 ->firstOrFail();
 
-            // Can only delete pending withdrawals
             if ($withdrawal->status !== 'pending') {
                 return response()->json([
                     'success' => false,
@@ -383,26 +388,28 @@ class AdminPenarikanTunaiController extends Controller
                 ], 400);
             }
 
+            $userId = (int) $withdrawal->user_id;
+            $jumlahPoin = (int) $withdrawal->jumlah_poin;
+            $penarikanTunaiId = (int) $withdrawal->penarikan_tunai_id;
+
             DB::beginTransaction();
             try {
-                // CRITICAL: Refund poin before deleting
-                // Poin sudah dipotong saat request, jadi harus dikembalikan
                 PointService::refundWithdrawalPoints(
-                    (int) $withdrawal->user_id,
-                    (int) $withdrawal->jumlah_poin,
-                    (int) $withdrawal->penarikan_tunai_id
+                    $userId,
+                    $jumlahPoin,
+                    $penarikanTunaiId
                 );
 
+                $withdrawalData = $withdrawal->toArray();
                 $withdrawal->delete();
 
-                // Log the action
                 AuditLog::create([
                     'admin_id' => auth()->user()->user_id,
                     'action_type' => 'delete_withdrawal',
                     'resource_type' => 'PenarikanTunai',
-                    'resource_id' => $withdrawalId,
-                    'old_values' => $withdrawal->toArray(),
-                    'new_values' => [],
+                    'resource_id' => $penarikanTunaiId,
+                    'old_values' => $withdrawalData,
+                    'new_values' => ['points_refunded' => $jumlahPoin],
                     'ip_address' => request()->ip(),
                     'user_agent' => request()->userAgent(),
                     'status' => 'success'
@@ -412,7 +419,10 @@ class AdminPenarikanTunaiController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Penarikan berhasil dihapus dan poin dikembalikan'
+                    'message' => 'Penarikan berhasil dihapus dan poin dikembalikan',
+                    'data' => [
+                        'points_refunded' => $jumlahPoin
+                    ]
                 ]);
             } catch (\Exception $e) {
                 DB::rollback();
@@ -425,10 +435,13 @@ class AdminPenarikanTunaiController extends Controller
                 'message' => 'Withdrawal record not found'
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Withdrawal delete failed', [
+                'id' => $withdrawalId,
+                'error' => $e->getMessage()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan',
-                'error' => $e->getMessage()
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
         }
     }

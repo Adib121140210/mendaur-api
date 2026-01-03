@@ -389,11 +389,28 @@ class PointService
         int $points,
         ?int $penarikanId = null
     ): PoinTransaksi {
+        if ($penarikanId !== null) {
+            $existingRefund = PoinTransaksi::where('user_id', $userId)
+                ->where('sumber', self::SUMBER_PENGEMBALIAN_PENARIKAN)
+                ->where('referensi_id', $penarikanId)
+                ->where('referensi_tipe', 'PenarikanTunai')
+                ->first();
+
+            if ($existingRefund) {
+                Log::warning('Attempted duplicate refund for withdrawal', [
+                    'user_id' => $userId,
+                    'penarikan_id' => $penarikanId,
+                    'existing_refund_id' => $existingRefund->poin_transaksi_id,
+                ]);
+                throw new \Exception("Refund sudah pernah dilakukan untuk penarikan ini (ID: {$penarikanId})");
+            }
+        }
+
         return self::refundPoints(
             $userId,
             $points,
             self::SUMBER_PENGEMBALIAN_PENARIKAN,
-            "Pengembalian poin dari penarikan tunai yang ditolak",
+            "Pengembalian poin dari penarikan tunai #{$penarikanId} yang ditolak: +{$points} poin",
             $penarikanId,
             'PenarikanTunai'
         );
