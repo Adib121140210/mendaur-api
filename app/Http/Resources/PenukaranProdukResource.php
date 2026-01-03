@@ -7,11 +7,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PenukaranProdukResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
         return [
@@ -21,7 +16,7 @@ class PenukaranProdukResource extends JsonResource
                 'nama' => $this->produk?->nama,
                 'deskripsi' => $this->produk?->deskripsi,
                 'foto' => $this->getProductPhotoUrl(),
-                'foto_url' => $this->getProductPhotoUrl(), // Alias for compatibility
+                'foto_url' => $this->getProductPhotoUrl(),
                 'harga_poin' => $this->produk?->harga_poin,
             ],
             'poin_digunakan' => $this->poin_digunakan,
@@ -37,9 +32,6 @@ class PenukaranProdukResource extends JsonResource
         ];
     }
 
-    /**
-     * Get human-readable status label
-     */
     private function getStatusLabel(): string
     {
         $labels = [
@@ -53,10 +45,6 @@ class PenukaranProdukResource extends JsonResource
         return $labels[$this->status] ?? $this->status;
     }
 
-    /**
-     * Get the full URL for the product photo
-     * Handles both Cloudinary URLs and local storage paths
-     */
     private function getProductPhotoUrl(): ?string
     {
         $foto = $this->produk?->foto;
@@ -70,12 +58,11 @@ class PenukaranProdukResource extends JsonResource
             return str_replace('http://', 'https://', $foto);
         }
 
-        // Validate that foto is a valid file path
+        // Validate path format
         if (!preg_match('/^[\w\-\.\/]+$/', $foto)) {
             return null;
         }
 
-        // Otherwise, it's a local storage path - convert to full URL
         return secure_asset('storage/' . $foto);
     }
 }

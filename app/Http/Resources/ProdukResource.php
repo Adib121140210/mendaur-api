@@ -7,11 +7,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ProdukResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
         return [
@@ -19,7 +14,7 @@ class ProdukResource extends JsonResource
             'nama' => $this->nama,
             'deskripsi' => $this->deskripsi,
             'foto' => $this->getPhotoUrl(),
-            'foto_url' => $this->getPhotoUrl(), // Alias for compatibility
+            'foto_url' => $this->getPhotoUrl(),
             'harga_poin' => $this->harga_poin,
             'stok' => $this->stok,
             'kategori' => $this->kategori,
@@ -29,10 +24,6 @@ class ProdukResource extends JsonResource
         ];
     }
 
-    /**
-     * Get the full URL for the product photo
-     * Handles both Cloudinary URLs and local storage paths
-     */
     private function getPhotoUrl(): ?string
     {
         if (empty($this->foto)) {
@@ -44,13 +35,11 @@ class ProdukResource extends JsonResource
             return str_replace('http://', 'https://', $this->foto);
         }
 
-        // Validate that foto is a valid file path (not emoji or random text)
+        // Validate path format
         if (!preg_match('/^[\w\-\.\/]+$/', $this->foto)) {
             return null;
         }
 
-        // Otherwise, it's a local storage path - convert to full URL
-        // Railway uses HTTPS, so use secure_asset
         return secure_asset('storage/' . $this->foto);
     }
 }

@@ -222,18 +222,9 @@ class AdminPenukaranProdukController extends Controller
 
             $exchange->update($updateData);
 
-            // Deduct points from user using PointService
-            // CATATAN: actual_poin berkurang, display_poin TIDAK berkurang
-            // Poin sudah di-hold saat user submit request, jadi kita hanya finalize
-            // Jika belum di-hold, gunakan PointService untuk deduct
+            // Poin sudah dikurangi saat submit, tidak perlu decrement lagi
             $user = $exchange->user;
 
-            // Poin sudah dikurangi saat nasabah submit request di PenukaranProdukController
-            // Jadi di sini tidak perlu decrement lagi, cukup update status
-            // Tapi jika flow berbeda dan poin belum dikurangi:
-            // PointService::deductPointsForRedemption($user, $exchange->poin_digunakan, $exchange->penukaran_produk_id);
-
-            // Deduct stock
             $product->decrement('stok', $exchange->jumlah);
 
             // Create audit log
@@ -345,9 +336,7 @@ class AdminPenukaranProdukController extends Controller
             $oldData = $exchange->toArray();
             $wasApproved = in_array($exchange->status, ['approved', 'diproses', 'dikirim']);
 
-            // Refund points using PointService
-            // CATATAN: actual_poin dikembalikan, display_poin TIDAK berubah
-            // karena display_poin tidak dikurangi saat penukaran
+            // Refund poin
             $user = $exchange->user;
 
             if ($user) {

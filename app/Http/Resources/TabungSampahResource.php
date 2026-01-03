@@ -7,11 +7,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class TabungSampahResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
         return [
@@ -23,7 +18,7 @@ class TabungSampahResource extends JsonResource
             'status' => $this->status,
             'poin_didapat' => $this->poin_didapat,
             'foto_sampah' => $this->getPhotoUrl(),
-            'foto_sampah_url' => $this->getPhotoUrl(), // Alias for compatibility
+            'foto_sampah_url' => $this->getPhotoUrl(),
             'nama_lengkap' => $this->nama_lengkap,
             'no_hp' => $this->no_hp,
             'titik_lokasi' => $this->titik_lokasi,
@@ -32,10 +27,6 @@ class TabungSampahResource extends JsonResource
         ];
     }
 
-    /**
-     * Get the full URL for the waste photo
-     * Handles both Cloudinary URLs and local storage paths
-     */
     private function getPhotoUrl(): ?string
     {
         if (empty($this->foto_sampah)) {
@@ -47,12 +38,11 @@ class TabungSampahResource extends JsonResource
             return str_replace('http://', 'https://', $this->foto_sampah);
         }
 
-        // Validate that foto_sampah is a valid file path
+        // Validate path format
         if (!preg_match('/^[\w\-\.\/]+$/', $this->foto_sampah)) {
             return null;
         }
 
-        // Otherwise, it's a local storage path - convert to full URL
         return secure_asset('storage/' . $this->foto_sampah);
     }
 }
