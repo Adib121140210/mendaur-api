@@ -13,12 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class AdminPenarikanTunaiController extends Controller
 {
-    /**
-     * Get all withdrawal requests (GET /api/admin/penarikan-tunai)
-     */
+    // GET /api/admin/penarikan-tunai
     public function index(Request $request)
     {
-        // RBAC: Admin+ only - Check if user is admin or superadmin
+        // RBAC: Admin+ only
         if (!$request->user()->isAdminUser()) {
             return response()->json([
                 'status' => 'error',
@@ -28,17 +26,17 @@ class AdminPenarikanTunaiController extends Controller
 
         $query = PenarikanTunai::with('user');
 
-        // Filter by status
+        // Filter status
         if ($request->has('status') && $request->status) {
             $query->where('status', $request->status);
         }
 
-        // Filter by user_id
+        // Filter user_id
         if ($request->has('user_id')) {
             $query->where('user_id', $request->user_id);
         }
 
-        // Filter by date range
+        // Filter date
         if ($request->has('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
@@ -89,12 +87,10 @@ class AdminPenarikanTunaiController extends Controller
         ]);
     }
 
-    /**
-     * Get single withdrawal request detail (GET /api/admin/penarikan-tunai/{withdrawalId})
-     */
+    // GET /api/admin/penarikan-tunai/{id}
     public function show(Request $request, $withdrawalId)
     {
-        // RBAC: Admin+ only - Check if user is admin or superadmin
+        // RBAC: Admin+ only
         if (!$request->user()->isAdminUser()) {
             return response()->json([
                 'status' => 'error',
@@ -147,9 +143,7 @@ class AdminPenarikanTunaiController extends Controller
         }
     }
 
-    /**
-     * Approve withdrawal (PATCH /api/admin/penarikan-tunai/{withdrawalId}/approve)
-     */
+    // PATCH /api/admin/penarikan-tunai/{id}/approve
     public function approve(Request $request, $withdrawalId)
     {
         try {
@@ -246,18 +240,12 @@ class AdminPenarikanTunaiController extends Controller
         }
     }
 
-    /**
-     * Reject withdrawal and refund points (PATCH /api/admin/penarikan-tunai/{withdrawalId}/reject)
-     *
-     * SKEMA POIN:
-     * - Hanya tambah actual_poin (refund ke saldo)
-     * - display_poin TIDAK BERUBAH (karena tidak pernah dikurangi saat request withdrawal)
-     * - Catat di poin_transaksis dengan poin_didapat POSITIF (refund)
-     */
+    // PATCH /api/admin/penarikan-tunai/{id}/reject
+    // Refund actual_poin, display_poin tidak berubah
     public function reject(Request $request, $withdrawalId)
     {
         try {
-            // RBAC: Admin+ only - Check if user is admin or superadmin
+            // RBAC: Admin+ only
             if (!$request->user()->isAdminUser()) {
                 return response()->json([
                     'success' => false,
@@ -289,9 +277,9 @@ class AdminPenarikanTunaiController extends Controller
                 // - Update ONLY actual_poin (NOT display_poin)
                 // - Record transaction in poin_transaksis with POSITIVE value (refund)
                 PointService::refundWithdrawalPoints(
-                    $withdrawal->user_id,
-                    $withdrawal->jumlah_poin,
-                    $withdrawalId
+                    (int) $withdrawal->user_id,
+                    (int) $withdrawal->jumlah_poin,
+                    (int) $withdrawal->penarikan_tunai_id
                 );
 
                 // Update withdrawal status
@@ -369,17 +357,12 @@ class AdminPenarikanTunaiController extends Controller
         }
     }
 
-    /**
-     * Delete/Cancel withdrawal (DELETE /api/admin/penarikan-tunai/{withdrawalId})
-     *
-     * SKEMA POIN:
-     * - Harus refund poin ke user karena poin sudah dipotong saat request
-     * - Hanya tambah actual_poin (NOT display_poin)
-     */
+    // DELETE /api/admin/penarikan-tunai/{id}
+    // Refund poin sebelum delete
     public function destroy(Request $request, $withdrawalId)
     {
         try {
-            // RBAC: Admin+ only - Check if user is admin or superadmin
+            // RBAC: Admin+ only
             if (!$request->user()->isAdminUser()) {
                 return response()->json([
                     'success' => false,
@@ -405,9 +388,9 @@ class AdminPenarikanTunaiController extends Controller
                 // CRITICAL: Refund poin before deleting
                 // Poin sudah dipotong saat request, jadi harus dikembalikan
                 PointService::refundWithdrawalPoints(
-                    $withdrawal->user_id,
-                    $withdrawal->jumlah_poin,
-                    $withdrawalId
+                    (int) $withdrawal->user_id,
+                    (int) $withdrawal->jumlah_poin,
+                    (int) $withdrawal->penarikan_tunai_id
                 );
 
                 $withdrawal->delete();
@@ -450,13 +433,11 @@ class AdminPenarikanTunaiController extends Controller
         }
     }
 
-    /**
-     * Get withdrawal statistics (GET /api/admin/penarikan-tunai/stats/overview)
-     */
+    // GET /api/admin/penarikan-tunai/stats/overview
     public function stats(Request $request)
     {
         try {
-            // RBAC: Admin+ only - Check if user is admin or superadmin
+            // RBAC: Admin+ only
             if (!$request->user()->isAdminUser()) {
                 return response()->json([
                     'success' => false,
