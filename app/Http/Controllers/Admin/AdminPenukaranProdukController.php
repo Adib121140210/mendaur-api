@@ -279,6 +279,102 @@ class AdminPenukaranProdukController extends Controller
     }
 
     /**
+     * Mark exchange as completed (product picked up/delivered)
+     * PATCH /api/admin/penukar-produk/{exchangeId}/complete
+     */
+    public function complete(Request $request, $exchangeId)
+    {
+        if (!$request->user()->isAdminUser()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only admins can complete exchanges'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'catatan' => 'nullable|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $exchange = PenukaranProduk::where('penukaran_produk_id', (int) $exchangeId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $completableStatuses = ['approved', 'diproses', 'dikirim'];
+            if (!in_array($exchange->status, $completableStatuses)) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Penukaran dengan status "' . $exchange->status . '" tidak dapat diselesaikan',
+                    'current_status' => $exchange->status,
+                    'allowed_statuses' => $completableStatuses
+                ], 400);
+            }
+
+            $oldStatus = $exchange->status;
+            $penukaranId = (int) $exchange->penukaran_produk_id;
+            $userId = (int) $exchange->user_id;
+            $namaProduk = $exchange->nama_produk;
+
+            $exchange->update([
+                'status' => 'completed',
+                'tanggal_diambil' => now(),
+                'catatan' => $validated['catatan'] ?? $exchange->catatan,
+            ]);
+
+            AuditLog::create([
+                'admin_id' => $request->user()->user_id,
+                'action_type' => 'complete',
+                'resource_type' => 'PenukaranProduk',
+                'resource_id' => $penukaranId,
+                'old_values' => ['status' => $oldStatus],
+                'new_values' => ['status' => 'completed', 'tanggal_diambil' => now()->toISOString()],
+                'reason' => 'Product picked up/delivered',
+            ]);
+
+            DB::commit();
+
+            Notifikasi::create([
+                'user_id' => $userId,
+                'judul' => 'Penukaran Produk Selesai 🎉',
+                'pesan' => "Penukaran produk \"{$namaProduk}\" telah selesai. Terima kasih telah menggunakan layanan kami!",
+                'tipe' => 'success',
+                'related_id' => $penukaranId,
+                'related_type' => 'penukaran_produk',
+                'is_read' => false,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Exchange completed successfully',
+                'data' => [
+                    'id' => $penukaranId,
+                    'status' => 'completed',
+                    'tanggal_diambil' => $exchange->tanggal_diambil,
+                ]
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Exchange not found'
+            ], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to complete exchange', [
+                'exchange_id' => $exchangeId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to complete exchange: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Reject product exchange
      * PATCH /api/admin/penukar-produk/{exchangeId}/reject
      */
@@ -318,36 +414,43 @@ class AdminPenukaranProdukController extends Controller
             ], 422);
         }
 
-        $exchange = PenukaranProduk::where('penukaran_produk_id', $exchangeId)->firstOrFail();
-
-        // Allow reject for pending and approved status (not yet completed/cancelled)
-        $rejectableStatuses = ['pending', 'approved', 'diproses', 'dikirim'];
-        if (!in_array($exchange->status, $rejectableStatuses)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Penukaran dengan status "' . $exchange->status . '" tidak dapat ditolak',
-                'current_status' => $exchange->status,
-                'allowed_statuses' => $rejectableStatuses
-            ], 400);
-        }
-
         DB::beginTransaction();
         try {
-            $oldData = $exchange->toArray();
-            $wasApproved = in_array($exchange->status, ['approved', 'diproses', 'dikirim']);
+            $exchange = PenukaranProduk::where('penukaran_produk_id', (int) $exchangeId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-            // Refund poin
-            $user = $exchange->user;
-
-            if ($user) {
-                PointService::refundRedemptionPoints(
-                    $user->user_id,
-                    $exchange->poin_digunakan,
-                    $exchange->penukaran_produk_id
-                );
+            $rejectableStatuses = ['pending', 'approved', 'diproses', 'dikirim'];
+            if (!in_array($exchange->status, $rejectableStatuses)) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Penukaran dengan status "' . $exchange->status . '" tidak dapat ditolak',
+                    'current_status' => $exchange->status,
+                    'allowed_statuses' => $rejectableStatuses
+                ], 400);
             }
 
-            // If was approved, restore stock
+            $oldStatus = $exchange->status;
+            $wasApproved = in_array($oldStatus, ['approved', 'diproses', 'dikirim']);
+            $userId = (int) $exchange->user_id;
+            $poinDigunakan = (int) $exchange->poin_digunakan;
+            $penukaranId = (int) $exchange->penukaran_produk_id;
+            $namaProduk = $exchange->nama_produk;
+
+            \Log::info('Processing exchange rejection', [
+                'exchange_id' => $penukaranId,
+                'user_id' => $userId,
+                'poin_digunakan' => $poinDigunakan,
+                'old_status' => $oldStatus,
+            ]);
+
+            PointService::refundRedemptionPoints(
+                $userId,
+                $poinDigunakan,
+                $penukaranId
+            );
+
             if ($wasApproved) {
                 $product = Produk::find($exchange->produk_id);
                 if ($product) {
@@ -364,47 +467,61 @@ class AdminPenukaranProdukController extends Controller
                 'admin_id' => $request->user()->user_id,
                 'action_type' => 'reject',
                 'resource_type' => 'PenukaranProduk',
-                'resource_id' => $exchange->penukaran_produk_id,
-                'old_values' => [
-                    'status' => $oldData['status'],
-                ],
-                'new_values' => [
-                    'status' => 'rejected',
-                    'reason' => $alasanPenolakan,
-                ],
+                'resource_id' => $penukaranId,
+                'old_values' => ['status' => $oldStatus],
+                'new_values' => ['status' => 'cancelled', 'reason' => $alasanPenolakan, 'points_refunded' => $poinDigunakan],
                 'reason' => $alasanPenolakan,
             ]);
 
             DB::commit();
 
-            // Auto create notification for user
             Notifikasi::create([
-                'user_id' => $exchange->user_id,
+                'user_id' => $userId,
                 'judul' => 'Penukaran Produk Ditolak ❌',
-                'pesan' => "Penukaran produk \"{$exchange->nama_produk}\" ditolak. Alasan: {$alasanPenolakan}. Poin sebesar {$exchange->poin_digunakan} telah dikembalikan ke saldo Anda.",
+                'pesan' => "Penukaran produk \"{$namaProduk}\" ditolak. Alasan: {$alasanPenolakan}. Poin sebesar {$poinDigunakan} telah dikembalikan ke saldo Anda.",
                 'tipe' => 'warning',
-                'related_id' => $exchange->penukaran_produk_id,
+                'related_id' => $penukaranId,
                 'related_type' => 'penukaran_produk',
                 'is_read' => false,
+            ]);
+
+            $user = User::find($userId);
+
+            \Log::info('Exchange rejection completed', [
+                'exchange_id' => $penukaranId,
+                'user_id' => $userId,
+                'points_refunded' => $poinDigunakan,
+                'user_actual_poin_after' => $user->actual_poin ?? 0,
             ]);
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Exchange rejected successfully',
                 'data' => [
-                    'id' => $exchange->penukaran_produk_id,
-                    'status' => $exchange->status,
+                    'id' => $penukaranId,
+                    'status' => 'cancelled',
                     'alasan_penolakan' => $alasanPenolakan,
+                    'points_refunded' => $poinDigunakan,
+                    'user_actual_poin' => $user->actual_poin ?? 0,
                 ]
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::rollBack();
-            \Log::error('Failed to reject exchange', ['exchange_id' => $exchangeId, 'error' => $e->getMessage()]);
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to reject exchange',
-                'error' => $e->getMessage()
+                'message' => 'Exchange not found'
+            ], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to reject exchange', [
+                'exchange_id' => $exchangeId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to reject exchange: ' . $e->getMessage()
             ], 500);
         }
     }

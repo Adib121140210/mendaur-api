@@ -110,14 +110,14 @@ Route::get('debug/otp/{email}', function ($email) {
     $record = \App\Models\PasswordReset::where('email', $email)
         ->orderBy('created_at', 'desc')
         ->first();
-    
+
     if (!$record) {
         return response()->json([
             'found' => false,
             'message' => 'No OTP record found for this email'
         ]);
     }
-    
+
     return response()->json([
         'found' => true,
         'email' => $record->email,
@@ -291,6 +291,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('penukar-produk/{exchangeId}', [AdminPenukaranProdukController::class, 'show']);
         Route::patch('penukar-produk/{exchangeId}/approve', [AdminPenukaranProdukController::class, 'approve']);
         Route::patch('penukar-produk/{exchangeId}/reject', [AdminPenukaranProdukController::class, 'reject']);
+        Route::patch('penukar-produk/{exchangeId}/complete', [AdminPenukaranProdukController::class, 'complete']);
         Route::delete('penukar-produk/{exchangeId}', [AdminPenukaranProdukController::class, 'destroy']);
         Route::get('penukar-produk/stats/overview', [AdminPenukaranProdukController::class, 'stats']);
 

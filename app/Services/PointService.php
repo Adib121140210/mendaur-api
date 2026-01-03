@@ -374,11 +374,28 @@ class PointService
         int $points,
         ?int $penukaranId = null
     ): PoinTransaksi {
+        if ($penukaranId !== null) {
+            $existingRefund = PoinTransaksi::where('user_id', $userId)
+                ->where('sumber', self::SUMBER_REFUND_PENUKARAN)
+                ->where('referensi_id', $penukaranId)
+                ->where('referensi_tipe', 'PenukaranProduk')
+                ->first();
+
+            if ($existingRefund) {
+                Log::warning('Attempted duplicate refund for redemption', [
+                    'user_id' => $userId,
+                    'penukaran_id' => $penukaranId,
+                    'existing_refund_id' => $existingRefund->poin_transaksi_id,
+                ]);
+                throw new \Exception("Refund sudah pernah dilakukan untuk penukaran ini (ID: {$penukaranId})");
+            }
+        }
+
         return self::refundPoints(
             $userId,
             $points,
             self::SUMBER_REFUND_PENUKARAN,
-            "Pengembalian poin dari penukaran yang dibatalkan",
+            "Pengembalian poin dari penukaran #{$penukaranId} yang dibatalkan: +{$points} poin",
             $penukaranId,
             'PenukaranProduk'
         );
