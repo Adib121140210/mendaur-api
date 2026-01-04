@@ -7,16 +7,12 @@ use App\Models\Badge;
 use App\Models\Notifikasi;
 use App\Models\LogAktivitas;
 use App\Models\BadgeProgress;
+use App\Services\PointService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BadgeService
 {
-    /**
-     * Check if user meets any badge requirements and award them automatically
-     *
-     * @param int $userId
-     * @return array List of newly unlocked badges
-     */
     public function checkAndAwardBadges($userId)
     {
         $user = User::findOrFail($userId);
@@ -49,9 +45,6 @@ class BadgeService
         return $newlyUnlockedBadges;
     }
 
-    /**
-     * Check if user meets badge requirement
-     */
     private function checkBadgeRequirement(User $user, Badge $badge): bool
     {
         switch ($badge->tipe) {
@@ -74,18 +67,6 @@ class BadgeService
         }
     }
 
-    /**
-     * Award badge to user and give bonus points (DUAL-NASABAH AWARE)
-     *
-     * Rules:
-     * - Konvensional: Gets badge + reward_poin added to actual_poin (usable)
-     * - Modern: Gets badge + reward_poin added to poin_tercatat (non-usable)
-     *
-     * This ensures:
-     * - Modern nasabah CANNOT use reward points for withdrawal/redemption
-     * - Modern nasabah STILL gets prestige of badge unlock
-     * - Both types counted fairly in leaderboard (via display_poin)
-     */
     private function awardBadge(User $user, Badge $badge): void
     {
         DB::transaction(function() use ($user, $badge) {
@@ -101,17 +82,38 @@ class BadgeService
 
             // 2. Give bonus points (reward) based on nasabah type
             if ($badge->reward_poin > 0) {
-                if ($user->isNasabahKonvensional()) {
-                    // Konvensional: reward goes to actual_poin (usable for withdrawal/redemption)
-                    $user->increment('actual_poin', $badge->reward_poin);
-                    $user->increment('display_poin', $badge->reward_poin);
+                $notificationMessage = '';
+                try {
+                    // Use PointService to properly record transaction and update user poin
+                    PointService::awardBonusPoints(
+                        $user->user_id,
+                        (int) $badge->reward_poin,
+                        'badge_reward',
+                        "Badge unlocked: {$badge->nama}",
+                        $badge->badge_id,
+                        'Badge'
+                    );
 
-                    $notificationMessage = "Selamat! Kamu mendapatkan badge '{$badge->nama}' dan bonus {$badge->reward_poin} poin yang bisa digunakan!";
-                } else {
-                    // Modern: reward goes to poin_tercatat (only for audit/badge/leaderboard, NOT usable)
-                    $user->increment('poin_tercatat', $badge->reward_poin);
+                    $notificationMessage = $user->isNasabahKonvensional()
+                        ? "Selamat! Kamu mendapatkan badge '{$badge->nama}' dan bonus {$badge->reward_poin} poin yang bisa digunakan!"
+                        : "Selamat! Kamu mendapatkan badge '{$badge->nama}' dan bonus {$badge->reward_poin} poin (tercatat)!";
 
-                    $notificationMessage = "Selamat! Kamu mendapatkan badge '{$badge->nama}' dan bonus {$badge->reward_poin} poin (tercatat)!";
+                } catch (\Exception $e) {
+                    // Fallback: try direct increment to avoid losing reward if PointService fails
+                    Log::error('Badge reward PointService failed, falling back to direct increment', [
+                        'user_id' => $user->user_id,
+                        'badge_id' => $badge->badge_id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    if ($user->isNasabahKonvensional()) {
+                        $user->increment('actual_poin', $badge->reward_poin);
+                        $user->increment('display_poin', $badge->reward_poin);
+                        $notificationMessage = "Selamat! Kamu mendapatkan badge '{$badge->nama}' dan bonus {$badge->reward_poin} poin yang bisa digunakan!";
+                    } else {
+                        $user->increment('poin_tercatat', $badge->reward_poin);
+                        $notificationMessage = "Selamat! Kamu mendapatkan badge '{$badge->nama}' dan bonus {$badge->reward_poin} poin (tercatat)!";
+                    }
                 }
 
                 // 3. Log the activity
@@ -134,17 +136,11 @@ class BadgeService
         });
     }
 
-    /**
-     * Get all available badges
-     */
     public function getAllBadges()
     {
         return Badge::orderBy('syarat_poin')->orderBy('syarat_setor')->get();
     }
 
-    /**
-     * Get user's progress towards all badges
-     */
     public function getUserBadgeProgress($userId)
     {
         $user = User::findOrFail($userId);
